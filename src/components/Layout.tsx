@@ -5,7 +5,7 @@ import { Home, PlusCircle, BarChart, Tag, Menu, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import TransitionWrapper from './TransitionWrapper';
 import { cn } from '@/lib/utils';
-import useMobile from '@/hooks/use-mobile';
+import { useMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import UserProfile from './UserProfile'; 
 

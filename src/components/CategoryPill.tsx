@@ -1,42 +1,69 @@
-
 import React from 'react';
-import { cn, getCategoryColor } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
-import * as Icons from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { 
+  Car, Home, ShoppingCart, Utensils, Plus, 
+  Package, Zap, Gem, Shirt, CreditCard, Luggage, 
+  Smile, CupSoda, Plane, Bus, Train, Building, 
+  BookOpen, Award, Heart, Scissors, Headphones,
+  Laptop, Smartphone, Pill, Dumbbell, PlaneTakeoff
+} from 'lucide-react';
+import { type CategoryType } from '@/lib/types';
 
-interface CategoryPillProps {
-  type: string;
+type CategoryPillProps = {
   name: string;
+  type?: CategoryType;
   icon: string;
   onClick?: () => void;
-  active?: boolean;
-  className?: string;
-}
+  selected?: boolean;
+};
 
-const CategoryPill: React.FC<CategoryPillProps> = ({
-  type,
-  name,
-  icon,
-  onClick,
-  active = false,
-  className = '',
-}) => {
-  // Dynamic icon component
-  const IconComponent = (Icons as Record<string, LucideIcon>)[icon] || Icons.Circle;
+type IconMap = Record<string, React.ElementType>;
+
+const iconMap: IconMap = {
+  Car,
+  Home,
+  ShoppingCart,
+  Utensils,
+  Plus,
+  Package,
+  Zap,
+  Gem,
+  Shirt,
+  CreditCard,
+  Luggage,
+  Smile,
+  CupSoda,
+  Plane,
+  Bus,
+  Train,
+  Building,
+  BookOpen,
+  Award,
+  Heart,
+  Scissors,
+  Headphones,
+  Laptop,
+  Smartphone,
+  Pill,
+  Dumbbell,
+  PlaneTakeoff
+};
+
+const CategoryPill: React.FC<CategoryPillProps> = ({ name, type, icon, onClick, selected }) => {
+  const IconComponent = iconMap[icon] || Package;
 
   return (
     <button
       onClick={onClick}
       className={cn(
-        'flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium',
-        getCategoryColor(type),
-        active ? 'text-white ring-2 ring-white/30 shadow-lg' : 'text-white/90',
-        onClick ? 'cursor-pointer hover:shadow-md' : 'cursor-default',
-        className
+        "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none data-[state=open]:bg-secondary data-[state=open]:text-secondary-foreground",
+        selected
+          ? "bg-primary text-primary-foreground"
+          : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
       )}
     >
-      <IconComponent className="h-4 w-4" />
-      <span>{name}</span>
+      <IconComponent className="mr-2 h-4 w-4" />
+      {name}
     </button>
   );
 };
