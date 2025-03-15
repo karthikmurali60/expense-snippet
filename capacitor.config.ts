@@ -10,7 +10,10 @@ const config: CapacitorConfig = {
     cleartext: true
   },
   ios: {
-    contentInset: 'always'
+    contentInset: 'always',
+    scheme: 'App',
+    limitsNavigationsToAppBoundDomains: true,
+    reloadOnStatusBarTap: true
   }
 };
 
