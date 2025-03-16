@@ -108,6 +108,15 @@ const AddExpense = () => {
   // Determine the selected category to display its type
   const selectedCategory = categories.find(cat => cat.id === categoryId);
   
+  // Helper function to render icons safely
+  const renderIcon = (iconName: string) => {
+    const IconComponent = Icons[iconName as keyof typeof Icons];
+    if (IconComponent) {
+      return <IconComponent className="h-6 w-6 mb-1" />;
+    }
+    return <Icons.Package className="h-6 w-6 mb-1" />;
+  };
+  
   return (
     <Layout>
       <div className="mb-6">
@@ -203,13 +212,7 @@ const AddExpense = () => {
                     : "bg-secondary text-secondary-foreground hover:bg-muted"
                 )}
               >
-                {Icons[category.icon as keyof typeof Icons] ? (
-                  React.createElement(Icons[category.icon as keyof typeof Icons], { 
-                    className: "h-6 w-6 mb-1" 
-                  })
-                ) : (
-                  <Icons.Package className="h-6 w-6 mb-1" />
-                )}
+                {renderIcon(category.icon)}
                 <span className="text-sm font-medium">{category.name}</span>
               </button>
             ))}

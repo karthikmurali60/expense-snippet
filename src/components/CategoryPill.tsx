@@ -51,15 +51,19 @@ const iconMap: IconMap = {
 };
 
 const CategoryPill: React.FC<CategoryPillProps> = ({ name, type, icon, onClick, selected = false }) => {
+  // Use the icon from the map or fallback to Package
   const IconComponent = iconMap[icon] || Package;
 
   return (
     <button
       onClick={onClick}
+      type="button"
       className={cn(
         "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none data-[state=open]:bg-secondary data-[state=open]:text-secondary-foreground",
         selected
-          ? "bg-primary text-primary-foreground"
+          ? type 
+            ? `bg-expense-${type} text-white` 
+            : "bg-primary text-primary-foreground"
           : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
       )}
     >

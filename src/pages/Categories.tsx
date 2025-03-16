@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { useExpenseStore } from '@/lib/store';
@@ -29,12 +28,12 @@ const Categories = () => {
   const { 
     categories, 
     subcategories, 
-    addCategory, 
+    createCategory, 
     updateCategory, 
     deleteCategory,
-    addSubcategory,
-    updateSubcategory,
-    deleteSubcategory
+    createSubCategory,
+    updateSubCategory,
+    deleteSubCategory
   } = useExpenseStore();
   
   const [activeTab, setActiveTab] = useState('categories');
@@ -78,10 +77,18 @@ const Categories = () => {
     }
     
     if (editingCategory) {
-      updateCategory(editingCategory.id, categoryName, categoryType, categoryIcon);
+      updateCategory(editingCategory.id, {
+        name: categoryName,
+        type: categoryType,
+        icon: categoryIcon
+      });
       toast.success('Category updated successfully');
     } else {
-      addCategory(categoryName, categoryType, categoryIcon);
+      createCategory({
+        name: categoryName,
+        type: categoryType,
+        icon: categoryIcon
+      });
       toast.success('Category added successfully');
     }
     
@@ -125,10 +132,16 @@ const Categories = () => {
     }
     
     if (editingSubcategory) {
-      updateSubcategory(editingSubcategory.id, subcategoryName, parentCategoryId);
+      updateSubCategory(editingSubcategory.id, {
+        name: subcategoryName,
+        categoryId: parentCategoryId
+      });
       toast.success('Subcategory updated successfully');
     } else {
-      addSubcategory(subcategoryName, parentCategoryId);
+      createSubCategory({
+        name: subcategoryName,
+        categoryId: parentCategoryId
+      });
       toast.success('Subcategory added successfully');
     }
     
@@ -138,7 +151,7 @@ const Categories = () => {
   // Handle subcategory delete
   const handleDeleteSubcategory = (id: string) => {
     if (confirm('Are you sure? This will also delete all expenses in this subcategory.')) {
-      deleteSubcategory(id);
+      deleteSubCategory(id);
       toast.success('Subcategory deleted successfully');
     }
   };
