@@ -15,13 +15,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import * as Icons from 'lucide-react';
 import CategoryPill from '@/components/CategoryPill';
+import { supabase } from '@/integrations/supabase/client';
 
 const AddExpense = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const editingExpense = location.state?.expense;
   
-  const { categories, subcategories, addExpense, updateExpense } = useExpenseStore();
+  const { categories, subcategories, addExpense, updateExpense, fetchCategories, fetchSubCategories, fetchExpenses } = useExpenseStore();
   
   const [amount, setAmount] = useState(editingExpense?.amount?.toString() || '');
   const [description, setDescription] = useState(editingExpense?.description || '');
@@ -29,6 +30,19 @@ const AddExpense = () => {
   const [categoryId, setCategoryId] = useState(editingExpense?.categoryId || (categories[0]?.id || ''));
   const [subcategoryId, setSubcategoryId] = useState(editingExpense?.subcategoryId || '');
   const [isQuickAdd, setIsQuickAdd] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  useEffect(() => {
+    // Ensure categories and subcategories are loaded
+    const loadData = async () => {
+      await Promise.all([
+        fetchCategories(),
+        fetchSubCategories()
+      ]);
+    };
+    
+    loadData();
+  }, [fetchCategories, fetchSubCategories]);
   
   // Filter subcategories based on selected category
   const filteredSubcategories = subcategories.filter(
@@ -49,7 +63,7 @@ const AddExpense = () => {
     }
   };
   
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!amount || parseFloat(amount) <= 0) {
       toast.error('Please enter a valid amount');
       return;
@@ -70,34 +84,46 @@ const AddExpense = () => {
       return;
     }
 
-    const expenseData = {
-      amount: parseFloat(amount),
-      description,
-      date,
-      categoryId,
-      subcategoryId
-    };
+    setIsSubmitting(true);
     
-    if (editingExpense) {
-      updateExpense(editingExpense.id, expenseData);
-      toast.success('Expense updated successfully');
-    } else {
-      addExpense(expenseData);
-      toast.success('Expense added successfully');
+    try {
+      const expenseData = {
+        amount: parseFloat(amount),
+        description,
+        date,
+        categoryId,
+        subcategoryId
+      };
       
-      // If quick add is enabled, only reset amount and description
-      if (isQuickAdd) {
-        setAmount('');
-        setDescription('');
+      if (editingExpense) {
+        await updateExpense(editingExpense.id, expenseData);
+        toast.success('Expense updated successfully');
       } else {
-        // Navigate back to dashboard
-        navigate('/');
-        return;
+        await addExpense(expenseData);
+        toast.success('Expense added successfully');
+        
+        // If quick add is enabled, only reset amount and description
+        if (isQuickAdd) {
+          setAmount('');
+          setDescription('');
+          
+          // Refresh expenses list to immediately see the added expense
+          fetchExpenses();
+        } else {
+          // Navigate back to dashboard
+          navigate('/');
+          return;
+        }
       }
-    }
-    
-    if (!isQuickAdd) {
-      navigate('/');
+    } catch (error: any) {
+      console.error('Error saving expense:', error);
+      toast.error('Failed to save expense: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
+      
+      if (!isQuickAdd && !editingExpense) {
+        navigate('/');
+      }
     }
   };
   
@@ -262,14 +288,26 @@ const AddExpense = () => {
           <button
             onClick={handleCancel}
             className="flex-1 px-4 py-3 rounded-lg border border-input bg-background hover:bg-secondary transition-colors"
+            disabled={isSubmitting}
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 px-4 py-3 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
+            className="flex-1 px-4 py-3 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex items-center justify-center"
+            disabled={isSubmitting}
           >
-            {editingExpense ? 'Update' : 'Save'}
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {editingExpense ? 'Updating...' : 'Saving...'}
+              </>
+            ) : (
+              editingExpense ? 'Update' : 'Save'
+            )}
           </button>
         </div>
       </motion.div>

@@ -63,14 +63,27 @@ export const useExpenseStore = create<Store>()(
       expenses: [],
       initialized: false,
       
-      initializeStore: () => {
-        Promise.all([get().fetchCategories(), get().fetchSubCategories(), get().fetchExpenses()])
-          .then(() => set({ initialized: true }))
-          .catch((error) => {
-            console.error("Failed to initialize store:", error);
-            toast.error("Failed to initialize store.");
+      initializeStore: async () => {
+        const { data: session } = await supabase.auth.getSession();
+        if (session.session) {
+          // User is logged in, fetch data from Supabase
+          try {
+            await Promise.all([
+              get().fetchCategories(),
+              get().fetchSubCategories(),
+              get().fetchExpenses()
+            ]);
+            
             set({ initialized: true });
-          });
+          } catch (error) {
+            console.error("Failed to initialize store:", error);
+            toast.error("Failed to initialize store");
+            set({ initialized: true });
+          }
+        } else {
+          // User is not logged in yet, just mark as initialized
+          set({ initialized: true });
+        }
       },
       
       createCategory: async (category) => {
@@ -241,10 +254,38 @@ export const useExpenseStore = create<Store>()(
           if (categoriesData) {
             const categories = categoriesData.map(cat => convertToCategory(cat));
             set({ categories });
+            
+            // If no categories, create some default ones
+            if (categories.length === 0) {
+              const user = (await supabase.auth.getUser()).data.user;
+              if (user) {
+                await Promise.all([
+                  get().createCategory({ name: 'Food', type: 'food', icon: 'Utensils' }),
+                  get().createCategory({ name: 'Home', type: 'home', icon: 'Home' }),
+                  get().createCategory({ name: 'Transportation', type: 'car', icon: 'Car' }),
+                  get().createCategory({ name: 'Shopping', type: 'misc', icon: 'ShoppingCart' }),
+                  get().createCategory({ name: 'Entertainment', type: 'misc', icon: 'Smile' })
+                ]);
+                
+                // Fetch categories again after creating defaults
+                const { data: newCategoriesData } = await supabase
+                  .from('categories')
+                  .select('*')
+                  .order('name');
+                  
+                if (newCategoriesData) {
+                  const newCategories = newCategoriesData.map(cat => convertToCategory(cat));
+                  set({ categories: newCategories });
+                  return newCategories;
+                }
+              }
+            }
+            
             return categories;
           }
           return [];
         } catch (error: any) {
+          console.error('Failed to fetch categories:', error);
           toast.error('Failed to fetch categories: ' + error.message);
           return [];
         }
@@ -264,10 +305,63 @@ export const useExpenseStore = create<Store>()(
           if (subCategoriesData) {
             const subcategories = subCategoriesData.map(subcat => convertToSubCategory(subcat));
             set({ subcategories });
+            
+            // If no subcategories and we have categories, create some defaults
+            if (subcategories.length === 0 && get().categories.length > 0) {
+              const user = (await supabase.auth.getUser()).data.user;
+              if (user) {
+                const categories = get().categories;
+                
+                // Create default subcategories for each category
+                const createPromises = [];
+                
+                for (const category of categories) {
+                  if (category.type === 'food') {
+                    createPromises.push(
+                      get().createSubCategory({ name: 'Restaurant', categoryId: category.id }),
+                      get().createSubCategory({ name: 'Takeout', categoryId: category.id }),
+                      get().createSubCategory({ name: 'Groceries', categoryId: category.id })
+                    );
+                  } else if (category.type === 'home') {
+                    createPromises.push(
+                      get().createSubCategory({ name: 'Rent', categoryId: category.id }),
+                      get().createSubCategory({ name: 'Utilities', categoryId: category.id }),
+                      get().createSubCategory({ name: 'Furniture', categoryId: category.id })
+                    );
+                  } else if (category.type === 'car') {
+                    createPromises.push(
+                      get().createSubCategory({ name: 'Gas', categoryId: category.id }),
+                      get().createSubCategory({ name: 'Maintenance', categoryId: category.id }),
+                      get().createSubCategory({ name: 'Parking', categoryId: category.id })
+                    );
+                  } else {
+                    createPromises.push(
+                      get().createSubCategory({ name: 'General', categoryId: category.id })
+                    );
+                  }
+                }
+                
+                await Promise.all(createPromises);
+                
+                // Fetch subcategories again after creating defaults
+                const { data: newSubCategoriesData } = await supabase
+                  .from('subcategories')
+                  .select('*')
+                  .order('name');
+                  
+                if (newSubCategoriesData) {
+                  const newSubcategories = newSubCategoriesData.map(subcat => convertToSubCategory(subcat));
+                  set({ subcategories: newSubcategories });
+                  return newSubcategories;
+                }
+              }
+            }
+            
             return subcategories;
           }
           return [];
         } catch (error: any) {
+          console.error('Failed to fetch subcategories:', error);
           toast.error('Failed to fetch subcategories: ' + error.message);
           return [];
         }
@@ -291,6 +385,7 @@ export const useExpenseStore = create<Store>()(
           }
           return [];
         } catch (error: any) {
+          console.error('Failed to fetch expenses:', error);
           toast.error('Failed to fetch expenses: ' + error.message);
           return [];
         }
@@ -325,8 +420,9 @@ export const useExpenseStore = create<Store>()(
           }
           return null;
         } catch (error: any) {
+          console.error('Failed to add expense:', error);
           toast.error('Failed to add expense: ' + error.message);
-          return null;
+          throw error; // Re-throw to handle in component
         }
       },
       
@@ -359,8 +455,9 @@ export const useExpenseStore = create<Store>()(
           }
           return null;
         } catch (error: any) {
+          console.error('Failed to update expense:', error);
           toast.error('Failed to update expense: ' + error.message);
-          return null;
+          throw error; // Re-throw to handle in component
         }
       },
       
@@ -374,6 +471,7 @@ export const useExpenseStore = create<Store>()(
             expenses: state.expenses.filter((exp) => exp.id !== id)
           }));
         } catch (error: any) {
+          console.error('Failed to delete expense:', error);
           toast.error('Failed to delete expense: ' + error.message);
         }
       },
@@ -420,6 +518,10 @@ export const useExpenseStore = create<Store>()(
     }),
     {
       name: 'expense-store',
+      // Only persist non-sensitive data to localStorage
+      partialize: (state) => ({
+        initialized: state.initialized,
+      }),
     }
   )
 );
