@@ -107,7 +107,7 @@ const Index = () => {
                 name={category.name}
                 icon={category.icon}
                 onClick={() => handleCategoryFilter(category.id)}
-                active={selectedCategory === category.id}
+                selected={selectedCategory === category.id}
               />
             );
           })}

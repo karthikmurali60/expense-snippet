@@ -1,14 +1,13 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { formatISO } from 'date-fns';
-import { CategoryType, SubCategoryType, ExpenseType, Category, SubCategory, Expense } from './types';
+import { CategoryType, Category, Subcategory, Expense } from './types';
 
 export interface State {
   categories: Category[];
-  subCategories: SubCategory[];
+  subcategories: Subcategory[];
   expenses: Expense[];
   initialized: boolean;
 }
@@ -16,17 +15,19 @@ export interface State {
 export interface Actions {
   initializeStore: () => void;
   createCategory: (category: Omit<Category, 'id'>) => Promise<Category | null>;
-  createSubCategory: (subCategory: Omit<SubCategory, 'id'>) => Promise<SubCategory | null>;
+  createSubCategory: (subCategory: Omit<Subcategory, 'id'>) => Promise<Subcategory | null>;
   updateCategory: (id: string, updates: Partial<Category>) => Promise<Category | null>;
-  updateSubCategory: (id: string, updates: Partial<SubCategory>) => Promise<SubCategory | null>;
+  updateSubCategory: (id: string, updates: Partial<Subcategory>) => Promise<Subcategory | null>;
   deleteCategory: (id: string) => Promise<void>;
   deleteSubCategory: (id: string) => Promise<void>;
   fetchCategories: () => Promise<Category[]>;
-  fetchSubCategories: () => Promise<SubCategory[]>;
+  fetchSubCategories: () => Promise<Subcategory[]>;
   fetchExpenses: () => Promise<Expense[]>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense | null>;
   updateExpense: (id: string, updates: Partial<Expense>) => Promise<Expense | null>;
   deleteExpense: (id: string) => Promise<void>;
+  getMonthlyExpenses: (month: string) => Expense[];
+  getMonthlyStatistics: (month: string) => { totalAmount: number; categoryBreakdown: any[] };
 }
 
 export type Store = State & Actions;
@@ -39,7 +40,7 @@ const convertToCategory = (dbCategory: any): Category => ({
   icon: dbCategory.icon
 });
 
-const convertToSubCategory = (dbSubCategory: any): SubCategory => ({
+const convertToSubCategory = (dbSubCategory: any): Subcategory => ({
   id: dbSubCategory.id,
   name: dbSubCategory.name,
   categoryId: dbSubCategory.category_id
@@ -58,9 +59,10 @@ export const useExpenseStore = create<Store>()(
   persist(
     (set, get) => ({
       categories: [],
-      subCategories: [],
+      subcategories: [],
       expenses: [],
       initialized: false,
+      
       initializeStore: () => {
         Promise.all([get().fetchCategories(), get().fetchSubCategories(), get().fetchExpenses()])
           .then(() => set({ initialized: true }))
@@ -70,6 +72,7 @@ export const useExpenseStore = create<Store>()(
             set({ initialized: true });
           });
       },
+      
       createCategory: async (category) => {
         try {
           const user = (await supabase.auth.getUser()).data.user;
@@ -78,7 +81,9 @@ export const useExpenseStore = create<Store>()(
           const { data, error } = await supabase
             .from('categories')
             .insert({
-              ...category,
+              name: category.name,
+              type: category.type,
+              icon: category.icon,
               user_id: user.id
             })
             .select()
@@ -99,6 +104,7 @@ export const useExpenseStore = create<Store>()(
           return null;
         }
       },
+      
       createSubCategory: async (subCategory) => {
         try {
           const user = (await supabase.auth.getUser()).data.user;
@@ -107,7 +113,8 @@ export const useExpenseStore = create<Store>()(
           const { data, error } = await supabase
             .from('subcategories')
             .insert({
-              ...subCategory,
+              name: subCategory.name,
+              category_id: subCategory.categoryId,
               user_id: user.id
             })
             .select()
@@ -118,7 +125,7 @@ export const useExpenseStore = create<Store>()(
           if (data) {
             const newSubCategory = convertToSubCategory(data);
             set((state) => ({
-              subCategories: [...state.subCategories, newSubCategory]
+              subcategories: [...state.subcategories, newSubCategory]
             }));
             return newSubCategory;
           }
@@ -128,11 +135,19 @@ export const useExpenseStore = create<Store>()(
           return null;
         }
       },
+      
       updateCategory: async (id, updates) => {
         try {
+          // Convert categoryId to category_id for database
+          const dbUpdates = {
+            ...(updates.name && { name: updates.name }),
+            ...(updates.type && { type: updates.type }),
+            ...(updates.icon && { icon: updates.icon })
+          };
+          
           const { data, error } = await supabase
             .from('categories')
-            .update(updates)
+            .update(dbUpdates)
             .eq('id', id)
             .select()
             .single();
@@ -152,11 +167,18 @@ export const useExpenseStore = create<Store>()(
           return null;
         }
       },
+      
       updateSubCategory: async (id, updates) => {
         try {
+          // Convert categoryId to category_id for database
+          const dbUpdates = {
+            ...(updates.name && { name: updates.name }),
+            ...(updates.categoryId && { category_id: updates.categoryId })
+          };
+          
           const { data, error } = await supabase
             .from('subcategories')
-            .update(updates)
+            .update(dbUpdates)
             .eq('id', id)
             .select()
             .single();
@@ -166,7 +188,7 @@ export const useExpenseStore = create<Store>()(
           if (data) {
             const updatedSubCategory = convertToSubCategory(data);
             set((state) => ({
-              subCategories: state.subCategories.map((subcat) => (subcat.id === id ? updatedSubCategory : subcat))
+              subcategories: state.subcategories.map((subcat) => (subcat.id === id ? updatedSubCategory : subcat))
             }));
             return updatedSubCategory;
           }
@@ -176,6 +198,7 @@ export const useExpenseStore = create<Store>()(
           return null;
         }
       },
+      
       deleteCategory: async (id) => {
         try {
           const { error } = await supabase.from('categories').delete().eq('id', id);
@@ -189,6 +212,7 @@ export const useExpenseStore = create<Store>()(
           toast.error('Failed to delete category: ' + error.message);
         }
       },
+      
       deleteSubCategory: async (id) => {
         try {
           const { error } = await supabase.from('subcategories').delete().eq('id', id);
@@ -196,14 +220,13 @@ export const useExpenseStore = create<Store>()(
           if (error) throw error;
 
           set((state) => ({
-            subCategories: state.subCategories.filter((subcat) => subcat.id !== id)
+            subcategories: state.subcategories.filter((subcat) => subcat.id !== id)
           }));
         } catch (error: any) {
           toast.error('Failed to delete subcategory: ' + error.message);
         }
       },
 
-      // Update the fetchCategories method to fix type issues
       fetchCategories: async () => {
         try {
           const { data: categoriesData, error } = await supabase
@@ -227,7 +250,6 @@ export const useExpenseStore = create<Store>()(
         }
       },
 
-      // Update the fetchSubCategories method
       fetchSubCategories: async () => {
         try {
           const { data: subCategoriesData, error } = await supabase
@@ -240,9 +262,9 @@ export const useExpenseStore = create<Store>()(
           }
 
           if (subCategoriesData) {
-            const subCategories = subCategoriesData.map(subcat => convertToSubCategory(subcat));
-            set({ subCategories });
-            return subCategories;
+            const subcategories = subCategoriesData.map(subcat => convertToSubCategory(subcat));
+            set({ subcategories });
+            return subcategories;
           }
           return [];
         } catch (error: any) {
@@ -251,7 +273,6 @@ export const useExpenseStore = create<Store>()(
         }
       },
 
-      // Update the fetchExpenses method
       fetchExpenses: async () => {
         try {
           const { data: expensesData, error } = await supabase
@@ -275,7 +296,6 @@ export const useExpenseStore = create<Store>()(
         }
       },
 
-      // Update the addExpense method to fix date formatting
       addExpense: async (expense) => {
         try {
           const user = (await supabase.auth.getUser()).data.user;
@@ -309,11 +329,21 @@ export const useExpenseStore = create<Store>()(
           return null;
         }
       },
+      
       updateExpense: async (id, updates) => {
         try {
+          // Convert date to ISO string and field names for database
+          const dbUpdates: any = {};
+          
+          if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+          if (updates.description !== undefined) dbUpdates.description = updates.description;
+          if (updates.date !== undefined) dbUpdates.date = updates.date.toISOString();
+          if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
+          if (updates.subcategoryId !== undefined) dbUpdates.subcategory_id = updates.subcategoryId;
+
           const { data, error } = await supabase
             .from('expenses')
-            .update(updates)
+            .update(dbUpdates)
             .eq('id', id)
             .select()
             .single();
@@ -333,6 +363,7 @@ export const useExpenseStore = create<Store>()(
           return null;
         }
       },
+      
       deleteExpense: async (id) => {
         try {
           const { error } = await supabase.from('expenses').delete().eq('id', id);
@@ -346,6 +377,46 @@ export const useExpenseStore = create<Store>()(
           toast.error('Failed to delete expense: ' + error.message);
         }
       },
+      
+      // Helper functions for statistics and filtering
+      getMonthlyExpenses: (month) => {
+        const expenses = get().expenses;
+        return expenses.filter(expense => {
+          const expenseMonth = expense.date.toISOString().substring(0, 7);
+          return expenseMonth === month;
+        });
+      },
+      
+      getMonthlyStatistics: (month) => {
+        const monthlyExpenses = get().getMonthlyExpenses(month);
+        const categories = get().categories;
+        
+        // Calculate total amount
+        const totalAmount = monthlyExpenses.reduce((total, expense) => total + expense.amount, 0);
+        
+        // Calculate breakdown by category
+        const categoryTotals = monthlyExpenses.reduce((acc, expense) => {
+          const categoryId = expense.categoryId;
+          acc[categoryId] = (acc[categoryId] || 0) + expense.amount;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        // Create category breakdown with names and colors
+        const categoryBreakdown = Object.entries(categoryTotals).map(([id, total]) => {
+          const category = categories.find(c => c.id === id) || { name: 'Unknown', type: 'misc' as CategoryType, icon: 'Package', id };
+          return {
+            id,
+            name: category.name,
+            total,
+            color: category.type === 'food' ? 'green-500' : 
+                   category.type === 'home' ? 'blue-500' : 
+                   category.type === 'car' ? 'red-500' : 
+                   category.type === 'groceries' ? 'yellow-500' : 'purple-500'
+          };
+        }).sort((a, b) => b.total - a.total);
+        
+        return { totalAmount, categoryBreakdown };
+      }
     }),
     {
       name: 'expense-store',
