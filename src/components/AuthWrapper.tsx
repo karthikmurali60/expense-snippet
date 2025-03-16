@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthSession } from '@supabase/supabase-js';
 import AuthForm from './AuthForm';
+import { useExpenseStore } from '@/lib/store';
+import { toast } from 'sonner';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -11,21 +13,46 @@ interface AuthWrapperProps {
 const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const { initializeStore, initialized } = useExpenseStore();
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        
+        // Initialize store if user is logged in
+        if (session?.user && !initialized) {
+          await initializeStore();
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        toast.error("Failed to initialize authentication");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("Auth state changed:", _event, session?.user?.id);
       setSession(session);
+      
+      // Initialize store when user logs in
+      if (session?.user && !initialized) {
+        try {
+          await initializeStore();
+        } catch (error) {
+          console.error("Error initializing store on auth change:", error);
+        }
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [initializeStore, initialized]);
 
   if (loading) {
     return (
