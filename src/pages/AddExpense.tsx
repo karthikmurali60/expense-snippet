@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import * as Icons from 'lucide-react';
+import CategoryPill from '@/components/CategoryPill';
 
 const AddExpense = () => {
   const navigate = useNavigate();
@@ -68,25 +69,20 @@ const AddExpense = () => {
       toast.error('Please select a subcategory');
       return;
     }
+
+    const expenseData = {
+      amount: parseFloat(amount),
+      description,
+      date,
+      categoryId,
+      subcategoryId
+    };
     
     if (editingExpense) {
-      updateExpense(
-        editingExpense.id,
-        parseFloat(amount),
-        description,
-        date,
-        categoryId,
-        subcategoryId
-      );
+      updateExpense(editingExpense.id, expenseData);
       toast.success('Expense updated successfully');
     } else {
-      addExpense(
-        parseFloat(amount),
-        description,
-        date,
-        categoryId,
-        subcategoryId
-      );
+      addExpense(expenseData);
       toast.success('Expense added successfully');
       
       // If quick add is enabled, only reset amount and description
@@ -196,25 +192,27 @@ const AddExpense = () => {
           </label>
           
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-            {categories.map((category) => {
-              const IconComponent = (Icons as Record<string, any>)[category.icon] || Icons.Circle;
-              
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setCategoryId(category.id)}
-                  className={cn(
-                    "flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-300",
-                    categoryId === category.id
-                      ? `bg-expense-${category.type} text-white shadow-lg`
-                      : "bg-secondary text-secondary-foreground hover:bg-muted"
-                  )}
-                >
-                  <IconComponent className="h-6 w-6 mb-1" />
-                  <span className="text-sm font-medium">{category.name}</span>
-                </button>
-              );
-            })}
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setCategoryId(category.id)}
+                className={cn(
+                  "flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-300",
+                  categoryId === category.id
+                    ? `bg-expense-${category.type} text-white shadow-lg`
+                    : "bg-secondary text-secondary-foreground hover:bg-muted"
+                )}
+              >
+                {Icons[category.icon as keyof typeof Icons] ? (
+                  React.createElement(Icons[category.icon as keyof typeof Icons], { 
+                    className: "h-6 w-6 mb-1" 
+                  })
+                ) : (
+                  <Icons.Package className="h-6 w-6 mb-1" />
+                )}
+                <span className="text-sm font-medium">{category.name}</span>
+              </button>
+            ))}
           </div>
           
           <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -223,20 +221,14 @@ const AddExpense = () => {
           
           <div className="flex flex-wrap gap-2">
             {filteredSubcategories.map((subcat) => (
-              <button
+              <CategoryPill
                 key={subcat.id}
+                name={subcat.name}
+                icon={selectedCategory?.icon || 'Package'}
+                type={selectedCategory?.type}
                 onClick={() => setSubcategoryId(subcat.id)}
-                className={cn(
-                  "px-3 py-1 rounded-full text-sm font-medium transition-colors",
-                  subcategoryId === subcat.id
-                    ? selectedCategory 
-                      ? `bg-expense-${selectedCategory.type} text-white` 
-                      : "bg-primary text-white"
-                    : "bg-secondary text-secondary-foreground hover:bg-muted"
-                )}
-              >
-                {subcat.name}
-              </button>
+                selected={subcategoryId === subcat.id}
+              />
             ))}
           </div>
         </div>

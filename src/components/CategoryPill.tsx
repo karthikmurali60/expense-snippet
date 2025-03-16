@@ -50,7 +50,7 @@ const iconMap: IconMap = {
   PlaneTakeoff
 };
 
-const CategoryPill: React.FC<CategoryPillProps> = ({ name, type, icon, onClick, selected }) => {
+const CategoryPill: React.FC<CategoryPillProps> = ({ name, type, icon, onClick, selected = false }) => {
   const IconComponent = iconMap[icon] || Package;
 
   return (
