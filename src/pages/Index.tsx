@@ -22,7 +22,6 @@ const Index = () => {
     subcategories, 
     getMonthlyExpenses,
     getMonthlyStatistics,
-    deleteExpense
   } = useExpenseStore();
   
   const monthlyExpenses = getMonthlyExpenses(selectedMonth);
@@ -47,10 +46,6 @@ const Index = () => {
   
   const handleAddExpense = () => {
     navigate('/add');
-  };
-  
-  const handleDeleteExpense = (id: string) => {
-    deleteExpense(id);
   };
   
   const handleEditExpense = (expense: any) => {
@@ -150,7 +145,6 @@ const Index = () => {
                   expense={expense}
                   category={category}
                   subcategory={subcategory}
-                  onDelete={handleDeleteExpense}
                   onEdit={handleEditExpense}
                 />
               );

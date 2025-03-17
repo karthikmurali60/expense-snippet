@@ -3,68 +3,57 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { useExpenseStore } from '@/lib/store';
-import { formatCurrency } from '@/lib/utils';
-import { motion } from 'framer-motion';
-import { Calendar as CalendarIcon, Check, X } from 'lucide-react';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { Expense } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArrowLeft, Calendar, Check } from 'lucide-react';
+import { PopoverTrigger, Popover, PopoverContent } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import * as Icons from 'lucide-react';
-import CategoryPill from '@/components/CategoryPill';
-import { supabase } from '@/integrations/supabase/client';
 
 const AddExpense = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const editingExpense = location.state?.expense;
+  const editingExpense = location.state?.expense as Expense | undefined;
   
-  const { categories, subcategories, addExpense, updateExpense, fetchCategories, fetchSubCategories, fetchExpenses } = useExpenseStore();
+  const { 
+    categories, 
+    subcategories, 
+    addExpense,
+    updateExpense 
+  } = useExpenseStore();
   
-  const [amount, setAmount] = useState(editingExpense?.amount?.toString() || '');
+  const [amount, setAmount] = useState(editingExpense?.amount || 0);
   const [description, setDescription] = useState(editingExpense?.description || '');
-  const [date, setDate] = useState<Date>(editingExpense?.date ? new Date(editingExpense.date) : new Date());
-  const [categoryId, setCategoryId] = useState(editingExpense?.categoryId || (categories[0]?.id || ''));
+  const [date, setDate] = useState<Date>(editingExpense?.date || new Date());
+  const [categoryId, setCategoryId] = useState(editingExpense?.categoryId || categories[0]?.id || '');
   const [subcategoryId, setSubcategoryId] = useState(editingExpense?.subcategoryId || '');
-  const [isQuickAdd, setIsQuickAdd] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  useEffect(() => {
-    // Ensure categories and subcategories are loaded
-    const loadData = async () => {
-      await Promise.all([
-        fetchCategories(),
-        fetchSubCategories()
-      ]);
-    };
-    
-    loadData();
-  }, [fetchCategories, fetchSubCategories]);
   
   // Filter subcategories based on selected category
   const filteredSubcategories = subcategories.filter(
     subcat => subcat.categoryId === categoryId
   );
   
-  // Auto-select first subcategory when category changes
   useEffect(() => {
-    if (filteredSubcategories.length > 0 && !filteredSubcategories.find(s => s.id === subcategoryId)) {
+    if (categoryId && filteredSubcategories.length > 0 && !subcategoryId) {
       setSubcategoryId(filteredSubcategories[0].id);
     }
   }, [categoryId, filteredSubcategories, subcategoryId]);
   
-  const handleAmountChange = (value: string) => {
-    // Allow only numbers and a single decimal point
-    if (/^\d*\.?\d*$/.test(value) || value === '') {
-      setAmount(value);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!categoryId || !subcategoryId) {
+      toast.error('Please select a category and subcategory');
+      return;
     }
-  };
-  
-  const handleSave = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
+    
+    if (amount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
@@ -74,243 +63,208 @@ const AddExpense = () => {
       return;
     }
     
-    if (!categoryId) {
-      toast.error('Please select a category');
-      return;
-    }
-    
-    if (!subcategoryId) {
-      toast.error('Please select a subcategory');
-      return;
-    }
-
     setIsSubmitting(true);
     
     try {
-      const expenseData = {
-        amount: parseFloat(amount),
-        description,
-        date,
-        categoryId,
-        subcategoryId
-      };
-      
       if (editingExpense) {
-        await updateExpense(editingExpense.id, expenseData);
+        await updateExpense(editingExpense.id, {
+          amount,
+          description,
+          date,
+          categoryId,
+          subcategoryId
+        });
         toast.success('Expense updated successfully');
       } else {
-        await addExpense(expenseData);
+        await addExpense({
+          amount,
+          description,
+          date,
+          categoryId,
+          subcategoryId
+        });
         toast.success('Expense added successfully');
-        
-        // If quick add is enabled, only reset amount and description
-        if (isQuickAdd) {
-          setAmount('');
-          setDescription('');
-          
-          // Refresh expenses list to immediately see the added expense
-          fetchExpenses();
-        } else {
-          // Navigate back to dashboard
-          navigate('/');
-          return;
-        }
       }
+      navigate('/');
     } catch (error: any) {
-      console.error('Error saving expense:', error);
+      console.error('Failed to save expense:', error);
       toast.error('Failed to save expense: ' + error.message);
     } finally {
       setIsSubmitting(false);
-      
-      if (!isQuickAdd && !editingExpense) {
-        navigate('/');
-      }
     }
   };
   
-  const handleCancel = () => {
-    navigate('/');
-  };
-  
-  // Determine the selected category to display its type
-  const selectedCategory = categories.find(cat => cat.id === categoryId);
-  
-  // Helper function to render icons safely
-  const renderIcon = (iconName: string) => {
-    const IconComponent = Icons[iconName as keyof typeof Icons];
-    if (IconComponent) {
-      return <IconComponent className="h-6 w-6 mb-1" />;
-    }
-    return <Icons.Package className="h-6 w-6 mb-1" />;
+  const goBack = () => {
+    navigate(-1);
   };
   
   return (
     <Layout>
-      <div className="mb-6">
+      <div className="flex items-center mb-6">
+        <Button 
+          onClick={goBack}
+          variant="ghost" 
+          size="icon"
+          className="mr-2"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         <h1 className="text-3xl font-bold tracking-tight">
           {editingExpense ? 'Edit Expense' : 'Add Expense'}
         </h1>
-        <p className="text-muted-foreground mt-1">
-          {editingExpense ? 'Update your expense details' : 'Enter the details of your expense'}
-        </p>
       </div>
       
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-6"
-      >
-        {/* Amount Input */}
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div className="glass rounded-xl p-5">
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
+          <label className="text-sm font-medium text-foreground mb-2 block">
             Amount
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-              <span className="text-muted-foreground">$</span>
-            </div>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              $
+            </span>
             <input
-              type="text"
-              value={amount}
-              onChange={(e) => handleAmountChange(e.target.value)}
-              className="w-full pl-8 pr-3 py-3 text-2xl font-bold bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              type="number"
+              value={amount === 0 ? '' : amount}
+              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
               placeholder="0.00"
-              inputMode="decimal"
+              step="0.01"
+              className="w-full rounded-lg border border-input bg-background px-8 py-2 text-right text-xl font-semibold"
               autoFocus
             />
           </div>
         </div>
         
-        {/* Description Input */}
         <div className="glass rounded-xl p-5">
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
+          <label className="text-sm font-medium text-foreground mb-2 block">
             Description
           </label>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="Enter description"
+            placeholder="What was this expense for?"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2"
           />
         </div>
         
-        {/* Date Picker */}
         <div className="glass rounded-xl p-5">
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
+          <label className="text-sm font-medium text-foreground mb-2 block">
             Date
           </label>
-          <Popover>
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className="w-full justify-start text-left font-normal"
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? format(date, "PPP") : <span>Select a date</span>}
+                <Calendar className="mr-2 h-4 w-4" />
+                {format(date, 'PPP')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
-              <Calendar
+              <CalendarComponent
                 mode="single"
                 selected={date}
-                onSelect={(date) => date && setDate(date)}
+                onSelect={(date) => {
+                  if (date) {
+                    setDate(date);
+                    setCalendarOpen(false);
+                  }
+                }}
                 initialFocus
               />
             </PopoverContent>
           </Popover>
         </div>
         
-        {/* Category and Subcategory Selector */}
         <div className="glass rounded-xl p-5">
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
+          <label className="text-sm font-medium text-foreground mb-2 block">
             Category
           </label>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setCategoryId(category.id)}
-                className={cn(
-                  "flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-300",
-                  categoryId === category.id
-                    ? `bg-expense-${category.type} text-white shadow-lg`
-                    : "bg-secondary text-secondary-foreground hover:bg-muted"
-                )}
-              >
-                {renderIcon(category.icon)}
-                <span className="text-sm font-medium">{category.name}</span>
-              </button>
-            ))}
-          </div>
-          
-          <label className="block text-sm font-medium text-muted-foreground mb-2">
-            Subcategory
-          </label>
-          
-          <div className="flex flex-wrap gap-2">
-            {filteredSubcategories.map((subcat) => (
-              <CategoryPill
-                key={subcat.id}
-                name={subcat.name}
-                icon={selectedCategory?.icon || 'Package'}
-                type={selectedCategory?.type}
-                onClick={() => setSubcategoryId(subcat.id)}
-                selected={subcategoryId === subcat.id}
-              />
-            ))}
+          <div className="grid grid-cols-2 gap-2">
+            {categories.map(category => {
+              // Use type assertion to get the icon component safely
+              const IconComponent = (Icons as Record<string, any>)[category.icon] || Icons.Circle;
+              
+              return (
+                <motion.button
+                  key={category.id}
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    setCategoryId(category.id);
+                    // Reset subcategory when category changes
+                    setSubcategoryId('');
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border p-3 text-left",
+                    categoryId === category.id
+                      ? `bg-expense-${category.type} text-white border-transparent`
+                      : "bg-background border-border"
+                  )}
+                >
+                  <div className={cn(
+                    "rounded-full p-1",
+                    categoryId === category.id 
+                      ? "bg-white/20" 
+                      : `bg-expense-${category.type} text-white`
+                  )}>
+                    <IconComponent className="h-4 w-4" />
+                  </div>
+                  <span className="flex-1 text-sm font-medium">{category.name}</span>
+                  {categoryId === category.id && (
+                    <Check className="h-4 w-4 ml-auto" />
+                  )}
+                </motion.button>
+              );
+            })}
           </div>
         </div>
         
-        {/* Quick Add Toggle */}
-        {!editingExpense && (
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">Quick add mode</label>
-            <button
-              onClick={() => setIsQuickAdd(!isQuickAdd)}
-              className={cn(
-                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                isQuickAdd ? "bg-primary" : "bg-muted"
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block h-4 w-4 rounded-full bg-white transition-transform",
-                  isQuickAdd ? "translate-x-6" : "translate-x-1"
-                )}
-              />
-            </button>
+        {categoryId && filteredSubcategories.length > 0 && (
+          <div className="glass rounded-xl p-5">
+            <label className="text-sm font-medium text-foreground mb-2 block">
+              Subcategory
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {filteredSubcategories.map(subcategory => (
+                <motion.button
+                  key={subcategory.id}
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setSubcategoryId(subcategory.id)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-sm font-medium",
+                    subcategoryId === subcategory.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-secondary-foreground"
+                  )}
+                >
+                  {subcategory.name}
+                  {subcategoryId === subcategory.id && (
+                    <Check className="inline-block h-3.5 w-3.5 ml-1.5" />
+                  )}
+                </motion.button>
+              ))}
+            </div>
           </div>
         )}
         
-        {/* Action Buttons */}
-        <div className="flex gap-3">
-          <button
-            onClick={handleCancel}
-            className="flex-1 px-4 py-3 rounded-lg border border-input bg-background hover:bg-secondary transition-colors"
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex-1 px-4 py-3 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex items-center justify-center"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {editingExpense ? 'Updating...' : 'Saving...'}
-              </>
-            ) : (
-              editingExpense ? 'Update' : 'Save'
-            )}
-          </button>
-        </div>
-      </motion.div>
+        <Button 
+          type="submit" 
+          className="w-full" 
+          size="lg"
+          disabled={isSubmitting}
+        >
+          {isSubmitting 
+            ? 'Saving...' 
+            : editingExpense 
+              ? 'Update Expense' 
+              : 'Add Expense'
+          }
+        </Button>
+      </form>
     </Layout>
   );
 };

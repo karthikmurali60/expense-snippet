@@ -10,12 +10,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
+import { useExpenseStore } from '@/lib/store';
 
 interface ExpenseCardProps {
   expense: Expense;
   category: Category;
   subcategory: Subcategory;
-  onDelete: (id: string) => void;
   onEdit: (expense: Expense) => void;
 }
 
@@ -23,9 +24,22 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
   expense,
   category,
   subcategory,
-  onDelete,
   onEdit,
 }) => {
+  const { deleteExpense } = useExpenseStore();
+
+  const handleDelete = async (id: string) => {
+    try {
+      if (confirm('Are you sure you want to delete this expense?')) {
+        await deleteExpense(id);
+        toast.success('Expense deleted successfully');
+      }
+    } catch (error: any) {
+      console.error('Failed to delete expense:', error);
+      toast.error('Failed to delete expense: ' + error.message);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -66,7 +80,7 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={() => onDelete(expense.id)}
+                onClick={() => handleDelete(expense.id)}
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="h-4 w-4 mr-2" />

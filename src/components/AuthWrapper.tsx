@@ -23,8 +23,15 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         setSession(session);
         
         // Initialize store if user is logged in
-        if (session?.user && !initialized) {
-          await initializeStore();
+        if (session?.user) {
+          console.log("Found session for user:", session.user.id);
+          try {
+            await initializeStore();
+            console.log("Store initialized successfully on initial load");
+          } catch (error) {
+            console.error("Error initializing store:", error);
+            toast.error("Failed to initialize application data");
+          }
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
@@ -37,22 +44,25 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     initializeAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("Auth state changed:", _event, session?.user?.id);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session?.user?.id);
       setSession(session);
       
       // Initialize store when user logs in
-      if (session?.user && !initialized) {
+      if (event === 'SIGNED_IN' && session?.user) {
         try {
+          console.log("User signed in, initializing store");
           await initializeStore();
+          console.log("Store initialized successfully after sign in");
         } catch (error) {
           console.error("Error initializing store on auth change:", error);
+          toast.error("Failed to load your data");
         }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [initializeStore, initialized]);
+  }, [initializeStore]);
 
   if (loading) {
     return (

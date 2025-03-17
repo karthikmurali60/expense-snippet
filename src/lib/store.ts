@@ -81,7 +81,7 @@ export const useExpenseStore = create<Store>()(
           } catch (error) {
             console.error("Failed to initialize store:", error);
             toast.error("Failed to initialize store");
-            set({ initialized: true });
+            set({ initialized: true }); // Still mark as initialized to avoid infinite loops
           }
         } else {
           // User is not logged in yet, just mark as initialized
@@ -222,10 +222,17 @@ export const useExpenseStore = create<Store>()(
 
           if (error) throw error;
 
+          // Update state to remove the deleted category
           set((state) => ({
-            categories: state.categories.filter((cat) => cat.id !== id)
+            categories: state.categories.filter((cat) => cat.id !== id),
+            // Also remove any expenses and subcategories associated with this category
+            expenses: state.expenses.filter((exp) => exp.categoryId !== id),
+            subcategories: state.subcategories.filter((subcat) => subcat.categoryId !== id)
           }));
+          
+          toast.success('Category deleted successfully');
         } catch (error: any) {
+          console.error('Failed to delete category:', error);
           toast.error('Failed to delete category: ' + error.message);
         }
       },
@@ -236,10 +243,16 @@ export const useExpenseStore = create<Store>()(
 
           if (error) throw error;
 
+          // Update state to remove the deleted subcategory
           set((state) => ({
-            subcategories: state.subcategories.filter((subcat) => subcat.id !== id)
+            subcategories: state.subcategories.filter((subcat) => subcat.id !== id),
+            // Also remove any expenses associated with this subcategory
+            expenses: state.expenses.filter((exp) => exp.subcategoryId !== id)
           }));
+          
+          toast.success('Subcategory deleted successfully');
         } catch (error: any) {
+          console.error('Failed to delete subcategory:', error);
           toast.error('Failed to delete subcategory: ' + error.message);
         }
       },
@@ -391,7 +404,15 @@ export const useExpenseStore = create<Store>()(
 
           if (expensesData) {
             console.log("Expenses fetched:", expensesData.length);
-            const expenses = expensesData.map(exp => convertToExpense(exp));
+            const expenses = expensesData.map(exp => {
+              try {
+                return convertToExpense(exp);
+              } catch (e) {
+                console.error('Error converting expense:', e, exp);
+                return null;
+              }
+            }).filter(Boolean) as Expense[];
+            
             set({ expenses });
             return expenses;
           }
@@ -485,6 +506,7 @@ export const useExpenseStore = create<Store>()(
         } catch (error: any) {
           console.error('Failed to delete expense:', error);
           toast.error('Failed to delete expense: ' + error.message);
+          throw error; // Re-throw to handle in component
         }
       },
       
