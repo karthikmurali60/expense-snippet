@@ -95,7 +95,8 @@ const Statistics = () => {
           prevTotalAmount,
           monthChange,
           categoryBreakdown,
-          prevCategoryBreakdown
+          prevCategoryBreakdown,
+          getMonthlyExpenses
         }
       );
       toast.success('Exported successfully');

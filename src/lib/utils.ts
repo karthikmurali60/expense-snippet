@@ -42,7 +42,15 @@ export async function exportToExcel(
   categories: Category[],
   subcategories: Subcategory[],
   month: string,
-  comparisonData?: any
+  comparisonData?: {
+    previousMonth: string;
+    totalAmount: number;
+    prevTotalAmount: number;
+    monthChange: number;
+    categoryBreakdown: Array<{id: string; name: string; total: number}>;
+    prevCategoryBreakdown: Array<{id: string; name: string; total: number}>;
+    getMonthlyExpenses?: (month: string) => Expense[];
+  }
 ) {
   // Map categories and subcategories for easier lookup
   const categoryMap = new Map<string, Category>();
@@ -131,36 +139,45 @@ export async function exportToExcel(
     const subcategorySummaryData = [];
     
     // Group expenses by subcategory for current month
-    const currentSubcategoryTotals = expenses.reduce((acc, expense) => {
+    const currentSubcategoryTotals: Record<string, {
+      categoryId: string;
+      subcategoryId: string;
+      total: number;
+    }> = {};
+    
+    expenses.forEach(expense => {
       const key = `${expense.categoryId}-${expense.subcategoryId}`;
-      if (!acc[key]) {
-        acc[key] = {
+      if (!currentSubcategoryTotals[key]) {
+        currentSubcategoryTotals[key] = {
           categoryId: expense.categoryId,
           subcategoryId: expense.subcategoryId,
           total: 0
         };
       }
-      acc[key].total += expense.amount;
-      return acc;
-    }, {});
+      currentSubcategoryTotals[key].total += expense.amount;
+    });
     
     // Group expenses by subcategory for previous month
-    const prevMonthExpenses = comparisonData ? 
-      comparisonData.getMonthlyExpenses ? comparisonData.getMonthlyExpenses(comparisonData.previousMonth) : [] 
-      : [];
+    const prevMonthExpenses = comparisonData.getMonthlyExpenses ? 
+      comparisonData.getMonthlyExpenses(comparisonData.previousMonth) : [];
     
-    const prevSubcategoryTotals = prevMonthExpenses.reduce((acc, expense) => {
+    const prevSubcategoryTotals: Record<string, {
+      categoryId: string;
+      subcategoryId: string;
+      total: number;
+    }> = {};
+    
+    prevMonthExpenses.forEach(expense => {
       const key = `${expense.categoryId}-${expense.subcategoryId}`;
-      if (!acc[key]) {
-        acc[key] = {
+      if (!prevSubcategoryTotals[key]) {
+        prevSubcategoryTotals[key] = {
           categoryId: expense.categoryId,
           subcategoryId: expense.subcategoryId,
           total: 0
         };
       }
-      acc[key].total += expense.amount;
-      return acc;
-    }, {});
+      prevSubcategoryTotals[key].total += expense.amount;
+    });
     
     // Create subcategory summary entries
     Object.entries(currentSubcategoryTotals).forEach(([key, data]) => {
