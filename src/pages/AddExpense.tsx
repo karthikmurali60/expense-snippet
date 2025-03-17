@@ -13,11 +13,13 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import * as Icons from 'lucide-react';
+import { useMobile } from '@/hooks/use-mobile';
 
 const AddExpense = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const editingExpense = location.state?.expense as Expense | undefined;
+  const isMobile = useMobile();
   
   const { 
     categories, 
@@ -48,6 +50,8 @@ const AddExpense = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    if (isSubmitting) return; // Prevent multiple submissions
+    
     if (!categoryId || !subcategoryId) {
       toast.error('Please select a category and subcategory');
       return;
@@ -66,6 +70,72 @@ const AddExpense = () => {
     setIsSubmitting(true);
     
     try {
+      console.log('Submitting expense...', {
+        amount,
+        description,
+        date,
+        categoryId,
+        subcategoryId,
+        isEditing: !!editingExpense
+      });
+      
+      if (editingExpense) {
+        await updateExpense(editingExpense.id, {
+          amount,
+          description,
+          date,
+          categoryId,
+          subcategoryId
+        });
+        toast.success('Expense updated successfully');
+      } else {
+        await addExpense({
+          amount,
+          description,
+          date,
+          categoryId,
+          subcategoryId
+        });
+        toast.success('Expense added successfully');
+      }
+      navigate('/');
+    } catch (error: any) {
+      console.error('Failed to save expense:', error);
+      toast.error('Failed to save expense: ' + error.message);
+      setIsSubmitting(false); // Only reset if there's an error
+    }
+  };
+  
+  const handleManualSubmit = async () => {
+    if (isSubmitting) return;
+    
+    if (!categoryId || !subcategoryId) {
+      toast.error('Please select a category and subcategory');
+      return;
+    }
+    
+    if (amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    if (!description.trim()) {
+      toast.error('Please enter a description');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      console.log('Manually submitting expense...', {
+        amount,
+        description,
+        date,
+        categoryId,
+        subcategoryId,
+        isEditing: !!editingExpense
+      });
+      
       if (editingExpense) {
         await updateExpense(editingExpense.id, {
           amount,
@@ -125,12 +195,13 @@ const AddExpense = () => {
             </span>
             <input
               type="number"
+              inputMode="decimal"
               value={amount === 0 ? '' : amount}
               onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
               placeholder="0.00"
               step="0.01"
               className="w-full rounded-lg border border-input bg-background px-8 py-2 text-right text-xl font-semibold"
-              autoFocus
+              autoFocus={!isMobile}
             />
           </div>
         </div>
@@ -157,6 +228,7 @@ const AddExpense = () => {
               <Button
                 variant="outline"
                 className="w-full justify-start text-left font-normal"
+                type="button"
               >
                 <Calendar className="mr-2 h-4 w-4" />
                 {format(date, 'PPP')}
@@ -252,10 +324,11 @@ const AddExpense = () => {
         )}
         
         <Button 
-          type="submit" 
+          type="button" 
           className="w-full" 
           size="lg"
           disabled={isSubmitting}
+          onClick={handleManualSubmit}
         >
           {isSubmitting 
             ? 'Saving...' 
