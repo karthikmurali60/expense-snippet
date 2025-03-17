@@ -32,7 +32,6 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
     try {
       if (confirm('Are you sure you want to delete this expense?')) {
         await deleteExpense(id);
-        toast.success('Expense deleted successfully');
       }
     } catch (error: any) {
       console.error('Failed to delete expense:', error);

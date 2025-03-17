@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,7 +31,6 @@ export interface Actions {
 
 export type Store = State & Actions;
 
-// Fix for type conversion from Supabase to our app types
 const convertToCategory = (dbCategory: any): Category => ({
   id: dbCategory.id,
   name: dbCategory.name,
@@ -218,42 +216,59 @@ export const useExpenseStore = create<Store>()(
       
       deleteCategory: async (id) => {
         try {
+          // First delete all subcategories that belong to this category
+          const subcategoriesToDelete = get().subcategories.filter(s => s.categoryId === id);
+          for (const subcategory of subcategoriesToDelete) {
+            await get().deleteSubCategory(subcategory.id);
+          }
+          
+          // Then delete all expenses directly associated with this category
+          const expensesToDelete = get().expenses.filter(e => e.categoryId === id);
+          for (const expense of expensesToDelete) {
+            await get().deleteExpense(expense.id);
+          }
+          
+          // Finally delete the category itself
           const { error } = await supabase.from('categories').delete().eq('id', id);
 
           if (error) throw error;
 
           // Update state to remove the deleted category
           set((state) => ({
-            categories: state.categories.filter((cat) => cat.id !== id),
-            // Also remove any expenses and subcategories associated with this category
-            expenses: state.expenses.filter((exp) => exp.categoryId !== id),
-            subcategories: state.subcategories.filter((subcat) => subcat.categoryId !== id)
+            categories: state.categories.filter((cat) => cat.id !== id)
           }));
           
           toast.success('Category deleted successfully');
         } catch (error: any) {
           console.error('Failed to delete category:', error);
           toast.error('Failed to delete category: ' + error.message);
+          throw error;
         }
       },
       
       deleteSubCategory: async (id) => {
         try {
+          // First delete all expenses associated with this subcategory
+          const expensesToDelete = get().expenses.filter(e => e.subcategoryId === id);
+          for (const expense of expensesToDelete) {
+            await get().deleteExpense(expense.id);
+          }
+          
+          // Then delete the subcategory
           const { error } = await supabase.from('subcategories').delete().eq('id', id);
 
           if (error) throw error;
 
           // Update state to remove the deleted subcategory
           set((state) => ({
-            subcategories: state.subcategories.filter((subcat) => subcat.id !== id),
-            // Also remove any expenses associated with this subcategory
-            expenses: state.expenses.filter((exp) => exp.subcategoryId !== id)
+            subcategories: state.subcategories.filter((subcat) => subcat.id !== id)
           }));
           
           toast.success('Subcategory deleted successfully');
         } catch (error: any) {
           console.error('Failed to delete subcategory:', error);
           toast.error('Failed to delete subcategory: ' + error.message);
+          throw error;
         }
       },
 
@@ -455,7 +470,7 @@ export const useExpenseStore = create<Store>()(
         } catch (error: any) {
           console.error('Failed to add expense:', error);
           toast.error('Failed to add expense: ' + error.message);
-          throw error; // Re-throw to handle in component
+          throw error;
         }
       },
       
@@ -490,7 +505,7 @@ export const useExpenseStore = create<Store>()(
         } catch (error: any) {
           console.error('Failed to update expense:', error);
           toast.error('Failed to update expense: ' + error.message);
-          throw error; // Re-throw to handle in component
+          throw error;
         }
       },
       
@@ -503,14 +518,15 @@ export const useExpenseStore = create<Store>()(
           set((state) => ({
             expenses: state.expenses.filter((exp) => exp.id !== id)
           }));
+          
+          toast.success('Expense deleted successfully');
         } catch (error: any) {
           console.error('Failed to delete expense:', error);
           toast.error('Failed to delete expense: ' + error.message);
-          throw error; // Re-throw to handle in component
+          throw error;
         }
       },
       
-      // Helper functions for statistics and filtering
       getMonthlyExpenses: (month) => {
         const expenses = get().expenses;
         return expenses.filter(expense => {
@@ -563,7 +579,6 @@ export const useExpenseStore = create<Store>()(
     }),
     {
       name: 'expense-store',
-      // Only persist non-sensitive data to localStorage
       partialize: (state) => ({
         initialized: state.initialized,
       }),
