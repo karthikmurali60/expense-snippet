@@ -164,7 +164,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               to="/"
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
-                isActive('/') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                isActive('/') 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
               )}
             >
               <Home className="h-5 w-5" />
@@ -175,7 +177,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               to="/statistics"
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
-                isActive('/statistics') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                isActive('/statistics') 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
               )}
             >
               <PieChart className="h-5 w-5" />
@@ -186,7 +190,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               to="/categories"
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
-                isActive('/categories') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                isActive('/categories') 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
               )}
             >
               <Folder className="h-5 w-5" />
@@ -197,7 +203,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               to="/budgets"
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
-                isActive('/budgets') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                isActive('/budgets') 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
               )}
             >
               <DollarSign className="h-5 w-5" />
@@ -208,7 +216,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               to="/goals"
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
-                isActive('/goals') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                isActive('/goals') 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
               )}
             >
               <Target className="h-5 w-5" />

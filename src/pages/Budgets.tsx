@@ -157,7 +157,7 @@ const Budgets = () => {
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{category.name}</span>
                     {budget.budgetAmount > 0 && (
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-sm text-muted-foreground dark:text-foreground/70">
                         ({formatCurrency(budget.spentAmount)} of {formatCurrency(budget.budgetAmount)})
                       </span>
                     )}
@@ -193,7 +193,7 @@ const Budgets = () => {
                     {isOverBudget ? 'Over budget!' : `${Math.round(percentage)}% used`}
                   </span>
                   {budget.budgetAmount === 0 && (
-                    <span className="text-muted-foreground">No budget set</span>
+                    <span className="text-muted-foreground dark:text-foreground/70">No budget set</span>
                   )}
                 </div>
               </motion.div>
@@ -203,7 +203,7 @@ const Budgets = () => {
       ) : (
         <div className="glass rounded-xl p-8 text-center">
           <h3 className="text-lg font-medium mb-2">No budgets yet</h3>
-          <p className="text-muted-foreground mb-4">
+          <p className="text-muted-foreground dark:text-foreground/70 mb-4">
             Start by setting a budget for a category
           </p>
           <Button onClick={handleAddBudget}>
@@ -228,7 +228,7 @@ const Budgets = () => {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground"
               >
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
@@ -243,7 +243,7 @@ const Budgets = () => {
                 Budget Amount
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground dark:text-foreground/70">
                   $
                 </span>
                 <input
@@ -253,7 +253,7 @@ const Budgets = () => {
                   onChange={(e) => setBudgetAmount(parseFloat(e.target.value) || 0)}
                   placeholder="0.00"
                   step="0.01"
-                  className="w-full rounded-lg border border-input bg-background px-8 py-2 text-right"
+                  className="w-full rounded-lg border border-input bg-background px-8 py-2 text-right text-foreground"
                   autoFocus
                 />
               </div>
