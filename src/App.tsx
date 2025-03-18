@@ -13,6 +13,8 @@ import Index from "./pages/Index";
 import AddExpense from "./pages/AddExpense";
 import Statistics from "./pages/Statistics";
 import Categories from "./pages/Categories";
+import Budgets from "./pages/Budgets";
+import Goals from "./pages/Goals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -25,8 +27,15 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  const { initializeStore, initialized } = useExpenseStore();
+  const { initializeStore, initialized, theme } = useExpenseStore();
   const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    // Apply theme class to root document element
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+  }, [theme]);
   
   useEffect(() => {
     // Set up auth state listener
@@ -75,6 +84,8 @@ const App = () => {
                 <Route path="/add" element={<AddExpense />} />
                 <Route path="/statistics" element={<Statistics />} />
                 <Route path="/categories" element={<Categories />} />
+                <Route path="/budgets" element={<Budgets />} />
+                <Route path="/goals" element={<Goals />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AnimatePresence>

@@ -2,13 +2,16 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CategoryType, Category, Subcategory, Expense } from './types';
+import { CategoryType, Category, Subcategory, Expense, Budget, SavingsGoal } from './types';
 
 export interface State {
   categories: Category[];
   subcategories: Subcategory[];
   expenses: Expense[];
+  budgets: Budget[];
+  savingsGoals: SavingsGoal[];
   initialized: boolean;
+  theme: 'light' | 'dark';
 }
 
 export interface Actions {
@@ -27,6 +30,23 @@ export interface Actions {
   deleteExpense: (id: string) => Promise<void>;
   getMonthlyExpenses: (month: string) => Expense[];
   getMonthlyStatistics: (month: string) => { totalAmount: number; categoryBreakdown: any[] };
+  
+  addBudget: (budget: Omit<Budget, 'id'>) => Promise<Budget | null>;
+  updateBudget: (id: string, updates: Partial<Budget>) => Promise<Budget | null>;
+  deleteBudget: (id: string) => Promise<void>;
+  getBudgetByMonth: (month: string) => Record<string, Budget>;
+  getBudgetProgress: (month: string) => {
+    categoryId: string;
+    budgetAmount: number;
+    spentAmount: number;
+    percentage: number;
+  }[];
+  
+  addSavingsGoal: (goal: Omit<SavingsGoal, 'id'>) => Promise<SavingsGoal | null>;
+  updateSavingsGoal: (id: string, updates: Partial<SavingsGoal>) => Promise<SavingsGoal | null>;
+  deleteSavingsGoal: (id: string) => Promise<void>;
+  
+  toggleTheme: () => void;
 }
 
 export type Store = State & Actions;
@@ -53,13 +73,33 @@ const convertToExpense = (dbExpense: any): Expense => ({
   subcategoryId: dbExpense.subcategory_id
 });
 
+const convertToBudget = (dbBudget: any): Budget => ({
+  id: dbBudget.id,
+  amount: parseFloat(dbBudget.amount),
+  month: dbBudget.month,
+  categoryId: dbBudget.category_id
+});
+
+const convertToSavingsGoal = (dbGoal: any): SavingsGoal => ({
+  id: dbGoal.id,
+  name: dbGoal.name,
+  targetAmount: parseFloat(dbGoal.target_amount),
+  currentAmount: parseFloat(dbGoal.current_amount),
+  dueDate: dbGoal.due_date ? new Date(dbGoal.due_date) : undefined,
+  icon: dbGoal.icon,
+  color: dbGoal.color
+});
+
 export const useExpenseStore = create<Store>()(
   persist(
     (set, get) => ({
       categories: [],
       subcategories: [],
       expenses: [],
+      budgets: [],
+      savingsGoals: [],
       initialized: false,
+      theme: 'light',
       
       initializeStore: async () => {
         console.log("Initializing store...");
@@ -575,12 +615,254 @@ export const useExpenseStore = create<Store>()(
         }).sort((a, b) => b.total - a.total);
         
         return { totalAmount, categoryBreakdown };
+      },
+      
+      addBudget: async (budget) => {
+        try {
+          const user = (await supabase.auth.getUser()).data.user;
+          if (!user) throw new Error('You must be logged in to add budgets');
+
+          const { data, error } = await supabase
+            .from('budgets')
+            .insert({
+              amount: budget.amount,
+              month: budget.month,
+              category_id: budget.categoryId,
+              user_id: user.id
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          if (data) {
+            const newBudget = convertToBudget(data);
+            set((state) => ({
+              budgets: [...state.budgets, newBudget]
+            }));
+            return newBudget;
+          }
+          return null;
+        } catch (error: any) {
+          console.error('Failed to add budget:', error);
+          toast.error('Failed to add budget: ' + error.message);
+          throw error;
+        }
+      },
+      
+      updateBudget: async (id, updates) => {
+        try {
+          const dbUpdates: any = {};
+          
+          if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+          if (updates.month !== undefined) dbUpdates.month = updates.month;
+          if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
+
+          const { data, error } = await supabase
+            .from('budgets')
+            .update(dbUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          if (data) {
+            const updatedBudget = convertToBudget(data);
+            set((state) => ({
+              budgets: state.budgets.map((budget) => (budget.id === id ? updatedBudget : budget))
+            }));
+            return updatedBudget;
+          }
+          return null;
+        } catch (error: any) {
+          console.error('Failed to update budget:', error);
+          toast.error('Failed to update budget: ' + error.message);
+          throw error;
+        }
+      },
+      
+      deleteBudget: async (id) => {
+        try {
+          const { error } = await supabase.from('budgets').delete().eq('id', id);
+
+          if (error) throw error;
+
+          set((state) => ({
+            budgets: state.budgets.filter((budget) => budget.id !== id)
+          }));
+          
+          toast.success('Budget deleted successfully');
+        } catch (error: any) {
+          console.error('Failed to delete budget:', error);
+          toast.error('Failed to delete budget: ' + error.message);
+          throw error;
+        }
+      },
+      
+      getBudgetByMonth: (month) => {
+        const budgets = get().budgets.filter(budget => budget.month === month);
+        const result: Record<string, Budget> = {};
+        
+        for (const budget of budgets) {
+          result[budget.categoryId] = budget;
+        }
+        
+        return result;
+      },
+      
+      getBudgetProgress: (month) => {
+        const budgets = get().getBudgetByMonth(month);
+        const expenses = get().getMonthlyExpenses(month);
+        const categories = get().categories;
+        
+        // Calculate total spent by category
+        const totalSpentByCategory: Record<string, number> = {};
+        for (const expense of expenses) {
+          if (!totalSpentByCategory[expense.categoryId]) {
+            totalSpentByCategory[expense.categoryId] = 0;
+          }
+          totalSpentByCategory[expense.categoryId] += expense.amount;
+        }
+        
+        // Create budget progress data
+        const result = [];
+        
+        // Add entries for categories with budgets
+        for (const categoryId in budgets) {
+          const budget = budgets[categoryId];
+          const spent = totalSpentByCategory[categoryId] || 0;
+          const percentage = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
+          
+          result.push({
+            categoryId,
+            budgetAmount: budget.amount,
+            spentAmount: spent,
+            percentage: Math.min(percentage, 100) // Cap at 100%
+          });
+        }
+        
+        // Add entries for categories without budgets but with expenses
+        for (const categoryId in totalSpentByCategory) {
+          if (!budgets[categoryId]) {
+            result.push({
+              categoryId,
+              budgetAmount: 0,
+              spentAmount: totalSpentByCategory[categoryId],
+              percentage: 100 // No budget = 100% used
+            });
+          }
+        }
+        
+        return result;
+      },
+      
+      addSavingsGoal: async (goal) => {
+        try {
+          const user = (await supabase.auth.getUser()).data.user;
+          if (!user) throw new Error('You must be logged in to add savings goals');
+
+          const { data, error } = await supabase
+            .from('savings_goals')
+            .insert({
+              name: goal.name,
+              target_amount: goal.targetAmount,
+              current_amount: goal.currentAmount,
+              due_date: goal.dueDate ? goal.dueDate.toISOString() : null,
+              icon: goal.icon,
+              color: goal.color,
+              user_id: user.id
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          if (data) {
+            const newGoal = convertToSavingsGoal(data);
+            set((state) => ({
+              savingsGoals: [...state.savingsGoals, newGoal]
+            }));
+            return newGoal;
+          }
+          return null;
+        } catch (error: any) {
+          console.error('Failed to add savings goal:', error);
+          toast.error('Failed to add savings goal: ' + error.message);
+          throw error;
+        }
+      },
+      
+      updateSavingsGoal: async (id, updates) => {
+        try {
+          const dbUpdates: any = {};
+          
+          if (updates.name !== undefined) dbUpdates.name = updates.name;
+          if (updates.targetAmount !== undefined) dbUpdates.target_amount = updates.targetAmount;
+          if (updates.currentAmount !== undefined) dbUpdates.current_amount = updates.currentAmount;
+          if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate ? updates.dueDate.toISOString() : null;
+          if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+          if (updates.color !== undefined) dbUpdates.color = updates.color;
+
+          const { data, error } = await supabase
+            .from('savings_goals')
+            .update(dbUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          if (data) {
+            const updatedGoal = convertToSavingsGoal(data);
+            set((state) => ({
+              savingsGoals: state.savingsGoals.map((goal) => (goal.id === id ? updatedGoal : goal))
+            }));
+            return updatedGoal;
+          }
+          return null;
+        } catch (error: any) {
+          console.error('Failed to update savings goal:', error);
+          toast.error('Failed to update savings goal: ' + error.message);
+          throw error;
+        }
+      },
+      
+      deleteSavingsGoal: async (id) => {
+        try {
+          const { error } = await supabase.from('savings_goals').delete().eq('id', id);
+
+          if (error) throw error;
+
+          set((state) => ({
+            savingsGoals: state.savingsGoals.filter((goal) => goal.id !== id)
+          }));
+          
+          toast.success('Savings goal deleted successfully');
+        } catch (error: any) {
+          console.error('Failed to delete savings goal:', error);
+          toast.error('Failed to delete savings goal: ' + error.message);
+          throw error;
+        }
+      },
+      
+      toggleTheme: () => {
+        set((state) => ({
+          theme: state.theme === 'light' ? 'dark' : 'light'
+        }));
+        
+        // Update document class for theme
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(get().theme);
       }
     }),
     {
       name: 'expense-store',
       partialize: (state) => ({
         initialized: state.initialized,
+        theme: state.theme,
+        savingsGoals: state.savingsGoals
       }),
     }
   )

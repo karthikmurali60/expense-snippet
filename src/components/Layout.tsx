@@ -1,13 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, PlusCircle, BarChart, Tag, Menu, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
-import TransitionWrapper from './TransitionWrapper';
+import { 
+  Home, PieChart, Folder, Plus, Menu, X, 
+  DollarSign, Wallet, Target
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useMobile } from '@/hooks/use-mobile';
-import { supabase } from '@/integrations/supabase/client';
-import UserProfile from './UserProfile'; 
+import { Button } from '@/components/ui/button';
+import { useExpenseStore } from '@/lib/store';
+import ThemeToggle from './ThemeToggle';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,122 +17,221 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
-  const isMobile = useMobile();
+  const { categories } = useExpenseStore();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
   
-  useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setUser(data.user);
-      }
-    };
-    
-    getUser();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user || null);
-      }
-    );
-    
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-  
-  const navLinks = [
-    { to: '/', icon: <Home size={20} />, label: 'Home' },
-    { to: '/add', icon: <PlusCircle size={20} />, label: 'Add' },
-    { to: '/statistics', icon: <BarChart size={20} />, label: 'Stats' },
-    { to: '/categories', icon: <Tag size={20} />, label: 'Categories' },
-  ];
-  
-  const toggleMenu = () => {
-    setMenuOpen(!menuOpen);
-  };
-  
-  const closeMenu = () => {
-    setMenuOpen(false);
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
   
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-background to-muted/30 flex flex-col md:flex-row md:overflow-hidden">
-      {/* Mobile Header */}
-      {isMobile && (
-        <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b px-4 py-3 flex justify-between items-center">
-          <button
-            onClick={toggleMenu}
-            className="rounded-full p-2 bg-secondary text-secondary-foreground"
-          >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-          <span className="font-semibold">Expense Tracker</span>
-          {user && <UserProfile user={user} />}
-        </header>
-      )}
-      
-      {/* Sidebar for Desktop or Mobile when menu is open */}
-      <AnimatePresence mode="wait">
-        {(!isMobile || menuOpen) && (
-          <motion.aside
-            initial={isMobile ? { x: '-100%' } : { opacity: 1 }}
-            animate={isMobile ? { x: 0 } : { opacity: 1 }}
-            exit={isMobile ? { x: '-100%' } : { opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            className={cn(
-              "bg-background border-r overflow-y-auto",
-              isMobile 
-                ? "fixed inset-y-[56px] left-0 z-30 w-64" 
-                : "sticky top-0 h-screen w-64 py-6"
-            )}
-          >
-            {!isMobile && (
-              <div className="p-4 flex justify-between items-center">
-                <span className="font-semibold text-lg">Expense Tracker</span>
-                {user && <UserProfile user={user} />}
-              </div>
-            )}
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Top navbar */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
+        <div className="container flex h-14 items-center px-4">
+          <div className="flex w-full justify-between">
+            <Link to="/" className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              <span className="text-lg font-semibold">ExpenseTrack</span>
+            </Link>
             
-            <nav className="p-4 space-y-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
-                    location.pathname === link.to 
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
-                  )}
-                  onClick={isMobile ? closeMenu : undefined}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="md:hidden"
+                onClick={() => setMenuOpen(true)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+      
+      {/* Side drawer for mobile */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm md:hidden"
+              onClick={() => setMenuOpen(false)}
+            />
+            
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ ease: 'easeOut', duration: 0.2 }}
+              className="fixed top-0 right-0 z-50 h-full w-2/3 border-l bg-background p-6 shadow-lg md:hidden"
+            >
+              <div className="flex justify-end mb-6">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setMenuOpen(false)}
                 >
-                  {link.icon}
-                  <span>{link.label}</span>
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              
+              <nav className="space-y-2">
+                <Link 
+                  to="/"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isActive('/') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                  )}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <Home className="h-5 w-5" />
+                  <span>Home</span>
                 </Link>
-              ))}
-            </nav>
-          </motion.aside>
+                
+                <Link 
+                  to="/statistics"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isActive('/statistics') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                  )}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <PieChart className="h-5 w-5" />
+                  <span>Statistics</span>
+                </Link>
+                
+                <Link 
+                  to="/categories"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isActive('/categories') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                  )}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <Folder className="h-5 w-5" />
+                  <span>Categories</span>
+                </Link>
+                
+                <Link 
+                  to="/budgets"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isActive('/budgets') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                  )}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <DollarSign className="h-5 w-5" />
+                  <span>Budgets</span>
+                </Link>
+                
+                <Link 
+                  to="/goals"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isActive('/goals') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                  )}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <Target className="h-5 w-5" />
+                  <span>Goals</span>
+                </Link>
+                
+                <Link 
+                  to="/add"
+                  className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <Plus className="h-5 w-5" />
+                  <span>Add Expense</span>
+                </Link>
+              </nav>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
       
-      {/* Mobile backdrop */}
-      {isMobile && menuOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.6 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-20 bg-black"
-          onClick={closeMenu}
-        />
-      )}
-      
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 max-w-5xl mx-auto w-full">
-        <TransitionWrapper>{children}</TransitionWrapper>
-      </main>
+      <div className="flex flex-1">
+        {/* Desktop sidebar */}
+        <aside className="hidden md:flex w-64 flex-col border-r px-4 py-6">
+          <nav className="space-y-2">
+            <Link 
+              to="/"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                isActive('/') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+              )}
+            >
+              <Home className="h-5 w-5" />
+              <span>Home</span>
+            </Link>
+            
+            <Link 
+              to="/statistics"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                isActive('/statistics') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+              )}
+            >
+              <PieChart className="h-5 w-5" />
+              <span>Statistics</span>
+            </Link>
+            
+            <Link 
+              to="/categories"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                isActive('/categories') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+              )}
+            >
+              <Folder className="h-5 w-5" />
+              <span>Categories</span>
+            </Link>
+            
+            <Link 
+              to="/budgets"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                isActive('/budgets') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+              )}
+            >
+              <DollarSign className="h-5 w-5" />
+              <span>Budgets</span>
+            </Link>
+            
+            <Link 
+              to="/goals"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                isActive('/goals') ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+              )}
+            >
+              <Target className="h-5 w-5" />
+              <span>Goals</span>
+            </Link>
+            
+            <div className="pt-2">
+              <Link 
+                to="/add"
+                className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors w-full"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Add Expense</span>
+              </Link>
+            </div>
+          </nav>
+        </aside>
+        
+        {/* Page content */}
+        <main className="flex-1 container px-4 py-6 md:py-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
 };

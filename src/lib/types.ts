@@ -30,3 +30,20 @@ export interface MonthlyStatistics {
   };
   total: number;
 }
+
+export interface Budget {
+  id: string;
+  amount: number;
+  month: string; // Format: 'YYYY-MM'
+  categoryId: string;
+}
+
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  dueDate?: Date;
+  icon: string;
+  color: string;
+}
