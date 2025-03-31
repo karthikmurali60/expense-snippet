@@ -7,13 +7,20 @@ import MonthSelector from '@/components/MonthSelector';
 import ExpenseCard from '@/components/ExpenseCard';
 import CategoryPill from '@/components/CategoryPill';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger 
+} from '@/components/ui/collapsible';
 
 const Index = () => {
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  const [isSubcategoriesOpen, setIsSubcategoriesOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
   const { 
@@ -27,21 +34,47 @@ const Index = () => {
   const monthlyExpenses = getMonthlyExpenses(selectedMonth);
   const { totalAmount, categoryBreakdown } = getMonthlyStatistics(selectedMonth);
   
-  const filteredExpenses = selectedCategory 
-    ? monthlyExpenses.filter(exp => exp.categoryId === selectedCategory)
-    : monthlyExpenses;
+  // Filter expenses based on selected category and subcategory
+  const filteredExpenses = monthlyExpenses.filter(expense => {
+    if (selectedCategory && expense.categoryId !== selectedCategory) {
+      return false;
+    }
+    if (selectedSubcategory && expense.subcategoryId !== selectedSubcategory) {
+      return false;
+    }
+    return true;
+  });
+
+  // Get available subcategories for the selected category
+  const availableSubcategories = selectedCategory 
+    ? subcategories.filter(sub => sub.categoryId === selectedCategory)
+    : [];
   
   useEffect(() => {
+    // Reset selected subcategory when category changes
+    setSelectedSubcategory(null);
+    
     // Simulate loading for smoother animations
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 300);
     
     return () => clearTimeout(timer);
-  }, []);
+  }, [selectedCategory, selectedMonth]);
   
   const handleCategoryFilter = (categoryId: string) => {
     setSelectedCategory(prevId => prevId === categoryId ? null : categoryId);
+    setIsSubcategoriesOpen(prevId => prevId !== categoryId);
+  };
+
+  const handleSubcategoryFilter = (subcategoryId: string) => {
+    setSelectedSubcategory(prevId => prevId === subcategoryId ? null : subcategoryId);
+  };
+  
+  const clearFilters = () => {
+    setSelectedCategory(null);
+    setSelectedSubcategory(null);
+    setIsSubcategoriesOpen(false);
   };
   
   const handleAddExpense = () => {
@@ -107,12 +140,53 @@ const Index = () => {
             );
           })}
         </div>
+        
+        {selectedCategory && availableSubcategories.length > 0 && (
+          <Collapsible 
+            open={isSubcategoriesOpen} 
+            onOpenChange={setIsSubcategoriesOpen}
+            className="mt-4"
+          >
+            <CollapsibleTrigger className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Subcategories
+              {isSubcategoriesOpen ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <div className="flex flex-wrap gap-2 mt-2">
+                {availableSubcategories.map(subcategory => (
+                  <button
+                    key={subcategory.id}
+                    onClick={() => handleSubcategoryFilter(subcategory.id)}
+                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                      selectedSubcategory === subcategory.id 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    }`}
+                  >
+                    {subcategory.name}
+                  </button>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+        
+        {(selectedCategory || selectedSubcategory) && (
+          <button 
+            onClick={clearFilters}
+            className="flex items-center mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="mr-1 h-4 w-4" />
+            Clear filters
+          </button>
+        )}
       </motion.div>
       
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">
           Recent Expenses
           {selectedCategory && ` - ${categories.find(c => c.id === selectedCategory)?.name}`}
+          {selectedSubcategory && ` - ${subcategories.find(s => s.id === selectedSubcategory)?.name}`}
         </h2>
         
         <button 
