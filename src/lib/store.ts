@@ -1,8 +1,10 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CategoryType, Category, Subcategory, Expense, Budget, SavingsGoal } from './types';
+import { CategoryType, Category, Subcategory, Expense, Budget, SavingsGoal, RecurringExpenseDetails } from './types';
+import { addMonths, format } from 'date-fns';
 
 export interface State {
   categories: Category[];
@@ -26,6 +28,7 @@ export interface Actions {
   fetchSubCategories: () => Promise<Subcategory[]>;
   fetchExpenses: () => Promise<Expense[]>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense | null>;
+  addRecurringExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense[]>;
   updateExpense: (id: string, updates: Partial<Expense>) => Promise<Expense | null>;
   deleteExpense: (id: string) => Promise<void>;
   getMonthlyExpenses: (month: string) => Expense[];
@@ -64,14 +67,29 @@ const convertToSubCategory = (dbSubCategory: any): Subcategory => ({
   categoryId: dbSubCategory.category_id
 });
 
-const convertToExpense = (dbExpense: any): Expense => ({
-  id: dbExpense.id,
-  amount: parseFloat(dbExpense.amount),
-  description: dbExpense.description,
-  date: new Date(dbExpense.date),
-  categoryId: dbExpense.category_id,
-  subcategoryId: dbExpense.subcategory_id
-});
+const convertToExpense = (dbExpense: any): Expense => {
+  const expense: Expense = {
+    id: dbExpense.id,
+    amount: parseFloat(dbExpense.amount),
+    description: dbExpense.description,
+    date: new Date(dbExpense.date),
+    categoryId: dbExpense.category_id,
+    subcategoryId: dbExpense.subcategory_id
+  };
+
+  // Add recurring details if present
+  if (dbExpense.recurring_data) {
+    try {
+      expense.recurring = typeof dbExpense.recurring_data === 'string' 
+        ? JSON.parse(dbExpense.recurring_data) 
+        : dbExpense.recurring_data;
+    } catch (error) {
+      console.error('Error parsing recurring data:', error);
+    }
+  }
+
+  return expense;
+};
 
 const convertToBudget = (dbBudget: any): Budget => ({
   id: dbBudget.id,
@@ -484,6 +502,11 @@ export const useExpenseStore = create<Store>()(
           const user = (await supabase.auth.getUser()).data.user;
           if (!user) throw new Error('You must be logged in to add expenses');
 
+          // Convert recurring data to JSON string if it exists
+          const recurringData = expense.recurring 
+            ? JSON.stringify(expense.recurring)
+            : null;
+
           const { data, error } = await supabase
             .from('expenses')
             .insert({
@@ -492,6 +515,7 @@ export const useExpenseStore = create<Store>()(
               date: expense.date.toISOString(),
               category_id: expense.categoryId,
               subcategory_id: expense.subcategoryId,
+              recurring_data: recurringData,
               user_id: user.id
             })
             .select()
@@ -514,6 +538,45 @@ export const useExpenseStore = create<Store>()(
         }
       },
       
+      addRecurringExpense: async (expense) => {
+        try {
+          if (!expense.recurring?.isRecurring || !expense.recurring.months || expense.recurring.months <= 0) {
+            // If not recurring or invalid months, add as a normal expense
+            const result = await get().addExpense(expense);
+            return result ? [result] : [];
+          }
+
+          const months = expense.recurring.months;
+          const results: Expense[] = [];
+          const baseDate = new Date(expense.date);
+          
+          // Add expense for each month in the sequence
+          for (let i = 0; i < months; i++) {
+            const currentDate = addMonths(baseDate, i);
+            const currentMonth = format(currentDate, 'yyyy-MM');
+            
+            // Create a recurring expense entry for this month
+            const monthExpense = {
+              ...expense,
+              date: currentDate,
+              recurring: {
+                ...expense.recurring,
+                startMonth: i === 0 ? currentMonth : expense.recurring.startMonth
+              }
+            };
+            
+            const result = await get().addExpense(monthExpense);
+            if (result) results.push(result);
+          }
+          
+          return results;
+        } catch (error: any) {
+          console.error('Failed to add recurring expenses:', error);
+          toast.error('Failed to add recurring expenses: ' + error.message);
+          throw error;
+        }
+      },
+      
       updateExpense: async (id, updates) => {
         try {
           // Convert date to ISO string and field names for database
@@ -524,6 +587,9 @@ export const useExpenseStore = create<Store>()(
           if (updates.date !== undefined) dbUpdates.date = updates.date.toISOString();
           if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
           if (updates.subcategoryId !== undefined) dbUpdates.subcategory_id = updates.subcategoryId;
+          if (updates.recurring !== undefined) {
+            dbUpdates.recurring_data = updates.recurring ? JSON.stringify(updates.recurring) : null;
+          }
 
           const { data, error } = await supabase
             .from('expenses')

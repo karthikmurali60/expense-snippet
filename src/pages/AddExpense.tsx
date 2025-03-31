@@ -5,7 +5,7 @@ import Layout from '@/components/Layout';
 import { useExpenseStore } from '@/lib/store';
 import { Expense } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, Check } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, Repeat } from 'lucide-react';
 import { PopoverTrigger, Popover, PopoverContent } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
@@ -14,6 +14,13 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import * as Icons from 'lucide-react';
 import { useMobile } from '@/hooks/use-mobile';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 const AddExpense = () => {
   const navigate = useNavigate();
@@ -25,6 +32,7 @@ const AddExpense = () => {
     categories, 
     subcategories, 
     addExpense,
+    addRecurringExpense,
     updateExpense 
   } = useExpenseStore();
   
@@ -35,6 +43,11 @@ const AddExpense = () => {
   const [subcategoryId, setSubcategoryId] = useState(editingExpense?.subcategoryId || '');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Recurring expense fields
+  const [isRecurring, setIsRecurring] = useState(editingExpense?.recurring?.isRecurring || false);
+  const [recurringMonths, setRecurringMonths] = useState(editingExpense?.recurring?.months || 3);
+  const [recurringOpen, setRecurringOpen] = useState(false);
   
   // Filter subcategories based on selected category
   const filteredSubcategories = subcategories.filter(
@@ -63,6 +76,11 @@ const AddExpense = () => {
       return false;
     }
     
+    if (isRecurring && (recurringMonths <= 0 || recurringMonths > 60)) {
+      toast.error('Please enter a valid number of months (1-60)');
+      return false;
+    }
+    
     return true;
   };
   
@@ -76,33 +94,37 @@ const AddExpense = () => {
     setIsSubmitting(true);
     
     try {
-      console.log('Submitting expense...', {
+      const expenseData = {
         amount,
         description,
         date,
         categoryId,
         subcategoryId,
+        ...(isRecurring && {
+          recurring: {
+            isRecurring,
+            months: recurringMonths,
+            startMonth: format(date, 'yyyy-MM')
+          }
+        })
+      };
+      
+      console.log('Submitting expense...', {
+        ...expenseData,
         isEditing: !!editingExpense
       });
       
       if (editingExpense) {
-        await updateExpense(editingExpense.id, {
-          amount,
-          description,
-          date,
-          categoryId,
-          subcategoryId
-        });
+        await updateExpense(editingExpense.id, expenseData);
         toast.success('Expense updated successfully');
       } else {
-        await addExpense({
-          amount,
-          description,
-          date,
-          categoryId,
-          subcategoryId
-        });
-        toast.success('Expense added successfully');
+        if (isRecurring) {
+          const expenses = await addRecurringExpense(expenseData);
+          toast.success(`${expenses.length} recurring expenses added successfully`);
+        } else {
+          await addExpense(expenseData);
+          toast.success('Expense added successfully');
+        }
       }
       navigate('/');
     } catch (error: any) {
@@ -112,8 +134,6 @@ const AddExpense = () => {
       setIsSubmitting(false); // Always reset submission state
     }
   };
-  
-  // Removed duplicate manual submit function as it was redundant
   
   const goBack = () => {
     navigate(-1);
@@ -201,6 +221,44 @@ const AddExpense = () => {
           </Popover>
         </div>
         
+        {!editingExpense && (
+          <div className="glass rounded-xl p-5">
+            <div className="flex items-center justify-between mb-2">
+              <Label htmlFor="recurring-switch" className="text-sm font-medium text-foreground">
+                Recurring Expense
+              </Label>
+              <Switch 
+                id="recurring-switch" 
+                checked={isRecurring} 
+                onCheckedChange={setIsRecurring}
+              />
+            </div>
+            
+            {isRecurring && (
+              <div className="mt-4">
+                <Label htmlFor="recurring-months" className="text-sm text-muted-foreground">
+                  Repeat for
+                </Label>
+                <div className="flex items-center mt-1">
+                  <input
+                    id="recurring-months"
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={recurringMonths}
+                    onChange={(e) => setRecurringMonths(parseInt(e.target.value) || 3)}
+                    className="w-20 rounded-lg border border-input bg-background px-3 py-2 mr-2"
+                  />
+                  <span className="text-sm text-muted-foreground">months</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  This will create {recurringMonths} expenses, one for each month starting from the selected date.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+        
         <div className="glass rounded-xl p-5">
           <label className="text-sm font-medium text-foreground mb-2 block">
             Category
@@ -284,7 +342,9 @@ const AddExpense = () => {
             ? 'Saving...' 
             : editingExpense 
               ? 'Update Expense' 
-              : 'Add Expense'
+              : isRecurring
+                ? `Add Recurring Expense (${recurringMonths} months)`
+                : 'Add Expense'
           }
         </Button>
       </form>

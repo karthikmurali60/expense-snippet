@@ -64,7 +64,8 @@ const Index = () => {
   
   const handleCategoryFilter = (categoryId: string) => {
     setSelectedCategory(prevId => prevId === categoryId ? null : categoryId);
-    setIsSubcategoriesOpen(prevId => prevId !== categoryId);
+    // Fixed: Compare categoryId (string) with prevId (string)
+    setIsSubcategoriesOpen(prevId => categoryId !== prevId);
   };
 
   const handleSubcategoryFilter = (subcategoryId: string) => {

@@ -14,6 +14,12 @@ export interface Subcategory {
   categoryId: string;
 }
 
+export interface RecurringExpenseDetails {
+  isRecurring: boolean;
+  months: number;          // Number of months to repeat
+  startMonth: string;      // Format: 'YYYY-MM'
+}
+
 export interface Expense {
   id: string;
   amount: number;
@@ -21,6 +27,7 @@ export interface Expense {
   date: Date;
   categoryId: string;
   subcategoryId: string;
+  recurring?: RecurringExpenseDetails;
 }
 
 export interface MonthlyStatistics {
