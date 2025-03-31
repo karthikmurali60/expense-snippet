@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { useExpenseStore } from '@/lib/store';
@@ -64,8 +63,8 @@ const Index = () => {
   
   const handleCategoryFilter = (categoryId: string) => {
     setSelectedCategory(prevId => prevId === categoryId ? null : categoryId);
-    // Fixed: Compare categoryId (string) with prevId (string)
-    setIsSubcategoriesOpen(prevId => categoryId !== prevId);
+    // Fix: This line had a type comparison error between string and boolean
+    setIsSubcategoriesOpen(prevIsOpen => prevId => categoryId === prevId ? true : false);
   };
 
   const handleSubcategoryFilter = (subcategoryId: string) => {
