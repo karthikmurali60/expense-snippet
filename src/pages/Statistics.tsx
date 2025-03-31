@@ -5,7 +5,7 @@ import { useExpenseStore } from '@/lib/store';
 import { formatCurrency, getCurrentMonth, getMonthName, exportToExcel, getPreviousMonth } from '@/lib/utils';
 import MonthSelector from '@/components/MonthSelector';
 import { motion } from 'framer-motion';
-import { DownloadIcon, PieChart, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { DownloadIcon, PieChart, TrendingUp, TrendingDown, Minus, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import {
@@ -27,6 +27,7 @@ const CATEGORY_COLORS = {
 const Statistics = () => {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [compareMode, setCompareMode] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   
   const { 
     getMonthlyExpenses, 
@@ -79,6 +80,43 @@ const Statistics = () => {
       decreased: change < 0,
       unchanged: change === 0
     };
+  };
+
+  // Calculate subcategory breakdown for each category
+  const getSubcategoryBreakdown = (categoryId) => {
+    const categoryExpenses = expenses.filter(expense => expense.categoryId === categoryId);
+    const subcategoryTotals = {};
+    
+    // Calculate total for each subcategory
+    categoryExpenses.forEach(expense => {
+      if (!subcategoryTotals[expense.subcategoryId]) {
+        subcategoryTotals[expense.subcategoryId] = 0;
+      }
+      subcategoryTotals[expense.subcategoryId] += expense.amount;
+    });
+    
+    // Convert to array with names
+    const categoryTotal = categoryExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    
+    return Object.entries(subcategoryTotals).map(([subcatId, total]) => {
+      const subcategory = subcategories.find(sc => sc.id === subcatId);
+      const percentage = categoryTotal > 0 ? ((total as number) / categoryTotal * 100).toFixed(1) : '0';
+      
+      return {
+        id: subcatId,
+        name: subcategory?.name || 'Unknown',
+        total: total as number,
+        percentage
+      };
+    }).sort((a, b) => b.total - a.total);
+  };
+
+  // Toggle category expansion
+  const toggleCategory = (categoryId) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryId]: !prev[categoryId]
+    }));
   };
   
   const handleExport = async () => {
@@ -220,11 +258,22 @@ const Statistics = () => {
                 const insight = getCategoryInsight(category.id);
                 const categoryType = categories.find(c => c.id === category.id)?.type || 'misc';
                 const categoryColor = CATEGORY_COLORS[categoryType] || '#8E9196';
+                const isExpanded = expandedCategories[category.id];
+                const subcategoryData = isExpanded ? getSubcategoryBreakdown(category.id) : [];
                 
                 return (
                   <div key={category.id} className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <span className="font-medium">{category.name}</span>
+                      <button 
+                        onClick={() => toggleCategory(category.id)}
+                        className="flex items-center font-medium hover:text-primary focus:outline-none"
+                      >
+                        {isExpanded ? 
+                          <ChevronDown className="h-4 w-4 mr-1" /> : 
+                          <ChevronRight className="h-4 w-4 mr-1" />
+                        }
+                        <span>{category.name}</span>
+                      </button>
                       <div className="flex items-baseline gap-2">
                         <span className="font-semibold">{formatCurrency(category.total)}</span>
                         <span className="text-sm text-muted-foreground">{percentage}%</span>
@@ -265,6 +314,41 @@ const Statistics = () => {
                           </>
                         )}
                       </div>
+                    )}
+                    
+                    {/* Subcategory breakdown */}
+                    {isExpanded && subcategoryData.length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        transition={{ duration: 0.3 }}
+                        className="pl-6 mt-2 pt-2 border-l-2 space-y-2"
+                        style={{ borderColor: categoryColor }}
+                      >
+                        <h4 className="text-sm font-medium text-muted-foreground mb-1">Subcategories</h4>
+                        
+                        {subcategoryData.map(subcat => (
+                          <div key={subcat.id} className="space-y-1">
+                            <div className="flex justify-between items-center text-sm">
+                              <span>{subcat.name}</span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="font-medium">{formatCurrency(subcat.total)}</span>
+                                <span className="text-xs text-muted-foreground">{subcat.percentage}%</span>
+                              </div>
+                            </div>
+                            
+                            <div className="h-1.5 bg-secondary/50 rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${subcat.percentage}%` }}
+                                transition={{ duration: 0.5, delay: 0.3 }}
+                                style={{ backgroundColor: categoryColor }}
+                                className="h-full opacity-70"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </motion.div>
                     )}
                   </div>
                 );
