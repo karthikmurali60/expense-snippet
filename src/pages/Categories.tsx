@@ -44,12 +44,14 @@ const Categories = () => {
   const [categoryName, setCategoryName] = useState('');
   const [categoryType, setCategoryType] = useState<CategoryType>('misc');
   const [categoryIcon, setCategoryIcon] = useState('Gift');
+  const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
   
   // Subcategory dialog state
   const [subcategoryDialogOpen, setSubcategoryDialogOpen] = useState(false);
   const [editingSubcategory, setEditingSubcategory] = useState<any>(null);
   const [subcategoryName, setSubcategoryName] = useState('');
   const [parentCategoryId, setParentCategoryId] = useState('');
+  const [isSubmittingSubcategory, setIsSubmittingSubcategory] = useState(false);
   
   // Open category dialog for adding
   const openAddCategoryDialog = () => {
@@ -70,36 +72,52 @@ const Categories = () => {
   };
   
   // Handle category save
-  const handleSaveCategory = () => {
+  const handleSaveCategory = async () => {
+    if (isSubmittingCategory) return; // Prevent double submission
+    
     if (!categoryName.trim()) {
       toast.error('Please enter a category name');
       return;
     }
     
-    if (editingCategory) {
-      updateCategory(editingCategory.id, {
-        name: categoryName,
-        type: categoryType,
-        icon: categoryIcon
-      });
-      toast.success('Category updated successfully');
-    } else {
-      createCategory({
-        name: categoryName,
-        type: categoryType,
-        icon: categoryIcon
-      });
-      toast.success('Category added successfully');
-    }
+    setIsSubmittingCategory(true);
     
-    setCategoryDialogOpen(false);
+    try {
+      if (editingCategory) {
+        await updateCategory(editingCategory.id, {
+          name: categoryName,
+          type: categoryType,
+          icon: categoryIcon
+        });
+        toast.success('Category updated successfully');
+      } else {
+        await createCategory({
+          name: categoryName,
+          type: categoryType,
+          icon: categoryIcon
+        });
+        toast.success('Category added successfully');
+      }
+      
+      setCategoryDialogOpen(false);
+    } catch (error: any) {
+      console.error('Failed to save category:', error);
+      toast.error('Failed to save category: ' + error.message);
+    } finally {
+      setIsSubmittingCategory(false);
+    }
   };
   
   // Handle category delete
-  const handleDeleteCategory = (id: string) => {
+  const handleDeleteCategory = async (id: string) => {
     if (confirm('Are you sure? This will also delete all subcategories and expenses in this category.')) {
-      deleteCategory(id);
-      toast.success('Category deleted successfully');
+      try {
+        await deleteCategory(id);
+        toast.success('Category deleted successfully');
+      } catch (error: any) {
+        console.error('Failed to delete category:', error);
+        toast.error('Failed to delete category: ' + error.message);
+      }
     }
   };
   
@@ -120,7 +138,9 @@ const Categories = () => {
   };
   
   // Handle subcategory save
-  const handleSaveSubcategory = () => {
+  const handleSaveSubcategory = async () => {
+    if (isSubmittingSubcategory) return; // Prevent double submission
+    
     if (!subcategoryName.trim()) {
       toast.error('Please enter a subcategory name');
       return;
@@ -131,28 +151,42 @@ const Categories = () => {
       return;
     }
     
-    if (editingSubcategory) {
-      updateSubCategory(editingSubcategory.id, {
-        name: subcategoryName,
-        categoryId: parentCategoryId
-      });
-      toast.success('Subcategory updated successfully');
-    } else {
-      createSubCategory({
-        name: subcategoryName,
-        categoryId: parentCategoryId
-      });
-      toast.success('Subcategory added successfully');
-    }
+    setIsSubmittingSubcategory(true);
     
-    setSubcategoryDialogOpen(false);
+    try {
+      if (editingSubcategory) {
+        await updateSubCategory(editingSubcategory.id, {
+          name: subcategoryName,
+          categoryId: parentCategoryId
+        });
+        toast.success('Subcategory updated successfully');
+      } else {
+        await createSubCategory({
+          name: subcategoryName,
+          categoryId: parentCategoryId
+        });
+        toast.success('Subcategory added successfully');
+      }
+      
+      setSubcategoryDialogOpen(false);
+    } catch (error: any) {
+      console.error('Failed to save subcategory:', error);
+      toast.error('Failed to save subcategory: ' + error.message);
+    } finally {
+      setIsSubmittingSubcategory(false);
+    }
   };
   
   // Handle subcategory delete
-  const handleDeleteSubcategory = (id: string) => {
+  const handleDeleteSubcategory = async (id: string) => {
     if (confirm('Are you sure? This will also delete all expenses in this subcategory.')) {
-      deleteSubCategory(id);
-      toast.success('Subcategory deleted successfully');
+      try {
+        await deleteSubCategory(id);
+        toast.success('Subcategory deleted successfully');
+      } catch (error: any) {
+        console.error('Failed to delete subcategory:', error);
+        toast.error('Failed to delete subcategory: ' + error.message);
+      }
     }
   };
   

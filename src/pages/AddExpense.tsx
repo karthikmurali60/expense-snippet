@@ -47,25 +47,31 @@ const AddExpense = () => {
     }
   }, [categoryId, filteredSubcategories, subcategoryId]);
   
+  const validateForm = () => {
+    if (!categoryId || !subcategoryId) {
+      toast.error('Please select a category and subcategory');
+      return false;
+    }
+    
+    if (amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return false;
+    }
+    
+    if (!description.trim()) {
+      toast.error('Please enter a description');
+      return false;
+    }
+    
+    return true;
+  };
+  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (isSubmitting) return; // Prevent multiple submissions
     
-    if (!categoryId || !subcategoryId) {
-      toast.error('Please select a category and subcategory');
-      return;
-    }
-    
-    if (amount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    
-    if (!description.trim()) {
-      toast.error('Please enter a description');
-      return;
-    }
+    if (!validateForm()) return;
     
     setIsSubmitting(true);
     
@@ -102,67 +108,12 @@ const AddExpense = () => {
     } catch (error: any) {
       console.error('Failed to save expense:', error);
       toast.error('Failed to save expense: ' + error.message);
-      setIsSubmitting(false); // Only reset if there's an error
+    } finally {
+      setIsSubmitting(false); // Always reset submission state
     }
   };
   
-  const handleManualSubmit = async () => {
-    if (isSubmitting) return;
-    
-    if (!categoryId || !subcategoryId) {
-      toast.error('Please select a category and subcategory');
-      return;
-    }
-    
-    if (amount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    
-    if (!description.trim()) {
-      toast.error('Please enter a description');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      console.log('Manually submitting expense...', {
-        amount,
-        description,
-        date,
-        categoryId,
-        subcategoryId,
-        isEditing: !!editingExpense
-      });
-      
-      if (editingExpense) {
-        await updateExpense(editingExpense.id, {
-          amount,
-          description,
-          date,
-          categoryId,
-          subcategoryId
-        });
-        toast.success('Expense updated successfully');
-      } else {
-        await addExpense({
-          amount,
-          description,
-          date,
-          categoryId,
-          subcategoryId
-        });
-        toast.success('Expense added successfully');
-      }
-      navigate('/');
-    } catch (error: any) {
-      console.error('Failed to save expense:', error);
-      toast.error('Failed to save expense: ' + error.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // Removed duplicate manual submit function as it was redundant
   
   const goBack = () => {
     navigate(-1);
@@ -324,11 +275,10 @@ const AddExpense = () => {
         )}
         
         <Button 
-          type="button" 
+          type="submit" 
           className="w-full" 
           size="lg"
           disabled={isSubmitting}
-          onClick={handleManualSubmit}
         >
           {isSubmitting 
             ? 'Saving...' 
