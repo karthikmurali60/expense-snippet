@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -16,6 +15,7 @@ import * as Icons from 'lucide-react';
 import { useMobile } from '@/hooks/use-mobile';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { 
   Collapsible,
   CollapsibleContent,
@@ -44,12 +44,10 @@ const AddExpense = () => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Recurring expense fields
   const [isRecurring, setIsRecurring] = useState(editingExpense?.recurring?.isRecurring || false);
   const [recurringMonths, setRecurringMonths] = useState(editingExpense?.recurring?.months || 3);
   const [recurringOpen, setRecurringOpen] = useState(false);
   
-  // Filter subcategories based on selected category
   const filteredSubcategories = subcategories.filter(
     subcat => subcat.categoryId === categoryId
   );
@@ -87,7 +85,7 @@ const AddExpense = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (isSubmitting) return; // Prevent multiple submissions
+    if (isSubmitting) return;
     
     if (!validateForm()) return;
     
@@ -131,7 +129,7 @@ const AddExpense = () => {
       console.error('Failed to save expense:', error);
       toast.error('Failed to save expense: ' + error.message);
     } finally {
-      setIsSubmitting(false); // Always reset submission state
+      setIsSubmitting(false);
     }
   };
   
@@ -240,14 +238,14 @@ const AddExpense = () => {
                   Repeat for
                 </Label>
                 <div className="flex items-center mt-1">
-                  <input
+                  <Input
                     id="recurring-months"
                     type="number"
                     min="1"
                     max="60"
                     value={recurringMonths}
                     onChange={(e) => setRecurringMonths(parseInt(e.target.value) || 3)}
-                    className="w-20 rounded-lg border border-input bg-background px-3 py-2 mr-2"
+                    className="w-20 mr-2"
                   />
                   <span className="text-sm text-muted-foreground">months</span>
                 </div>
@@ -265,7 +263,6 @@ const AddExpense = () => {
           </label>
           <div className="grid grid-cols-2 gap-2">
             {categories.map(category => {
-              // Use type assertion to get the icon component safely
               const IconComponent = (Icons as Record<string, any>)[category.icon] || Icons.Circle;
               
               return (
@@ -275,7 +272,6 @@ const AddExpense = () => {
                   whileTap={{ scale: 0.97 }}
                   onClick={() => {
                     setCategoryId(category.id);
-                    // Reset subcategory when category changes
                     setSubcategoryId('');
                   }}
                   className={cn(
