@@ -11,6 +11,14 @@
             "supabase_user_id": "09ae2113-c657-48cb-bdd8-02bd7dcc44ac",
             "category_id": "aa8415bd-1c05-4a57-a7bd-d4166df1a71e",
             "subcategory_id": "8deaae32-6265-476e-951c-1463e3d428d5"
+        },
+        {
+            "name": "Karthik",
+            "splitwise_api_token": "D8CclF24a3oxc2XaqMt62XIktoJgYO89lVO84QUv",
+            "splitwise_user_id": "36614890",
+            "supabase_user_id": "84afb855-9bc2-4cb9-8202-f22e61b7cb11",
+            "category_id": "89b4afee-0fdf-4db8-8d3b-e1e2f84448e0",
+            "subcategory_id": "701c0965-f8b4-473f-b357-2826074e8dac"
         }
     ]
 }
