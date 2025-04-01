@@ -29,13 +29,8 @@ def process_user_expenses(user_config):
     CATEGORY_ID = user_config['category_id']
     SUBCATEGORY_ID = user_config['subcategory_id']
 
-    # Get the current time in PST and one hour ago in PST
-    now_pst = datetime.now(pst)
-    one_hour_ago_pst = now_pst - timedelta(hours=24)
-
-    # Convert both times to UTC
-    now_utc = now_pst.astimezone(pytz.utc)
-    one_hour_ago_utc = one_hour_ago_pst.astimezone(pytz.utc)
+    now_utc = datetime.now(pytz.utc)
+    one_hour_ago_utc = now_utc - timedelta(hours=1)
 
     # Format the times to match Splitwise's expected format
     now_utc_str = now_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
