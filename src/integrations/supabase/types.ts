@@ -79,6 +79,7 @@ export type Database = {
           date: string
           description: string
           id: string
+          recurring_data: Json | null
           subcategory_id: string
           user_id: string
         }
@@ -89,6 +90,7 @@ export type Database = {
           date: string
           description: string
           id?: string
+          recurring_data?: Json | null
           subcategory_id: string
           user_id: string
         }
@@ -99,6 +101,7 @@ export type Database = {
           date?: string
           description?: string
           id?: string
+          recurring_data?: Json | null
           subcategory_id?: string
           user_id?: string
         }

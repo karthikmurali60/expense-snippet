@@ -13,13 +13,19 @@ interface MonthSummaryProps {
     total: number;
     color: string;
   }>;
+  selectedCategorySubcategoryTotal?: number;
+  selectedCategoryName?: string;
+  selectedSubcategoryName?: string;
 }
 
 const MonthSummary: React.FC<MonthSummaryProps> = ({
   selectedMonth,
   setSelectedMonth,
   totalAmount,
-  categoryBreakdown
+  categoryBreakdown,
+  selectedCategorySubcategoryTotal,
+  selectedCategoryName,
+  selectedSubcategoryName
 }) => {
   return (
     <>
@@ -34,8 +40,22 @@ const MonthSummary: React.FC<MonthSummaryProps> = ({
         transition={{ delay: 0.1 }}
         className="glass rounded-xl p-5 mb-6"
       >
-        <p className="text-sm font-medium text-muted-foreground">Total for {getMonthName(selectedMonth)}</p>
-        <h2 className="text-3xl font-bold mt-1">{formatCurrency(totalAmount)}</h2>
+        {selectedCategorySubcategoryTotal !== undefined && selectedCategoryName ? (
+          <>
+            <p className="text-sm font-medium text-muted-foreground">
+              {selectedCategoryName}
+              {selectedSubcategoryName ? ` - ${selectedSubcategoryName}` : ''}
+              {' for '}
+              {getMonthName(selectedMonth)}
+            </p>
+            <h2 className="text-3xl font-bold mt-1">{formatCurrency(selectedCategorySubcategoryTotal)}</h2>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-medium text-muted-foreground">Total for {getMonthName(selectedMonth)}</p>
+            <h2 className="text-3xl font-bold mt-1">{formatCurrency(totalAmount)}</h2>
+          </>
+        )}
         
         <div className="h-8 rounded-full bg-secondary overflow-hidden mt-4">
           <div className="flex h-full">

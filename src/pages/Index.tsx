@@ -38,10 +38,25 @@ const Index = () => {
     return true;
   });
 
+  // Calculate selected category-subcategory total
+  const selectedCategorySubcategoryTotal = filteredExpenses.reduce(
+    (total, expense) => total + expense.amount, 
+    0
+  );
+
   // Get available subcategories for the selected category
   const availableSubcategories = selectedCategory 
     ? subcategories.filter(sub => sub.categoryId === selectedCategory)
     : [];
+  
+  // Get names for selected category and subcategory
+  const selectedCategoryName = selectedCategory 
+    ? categories.find(c => c.id === selectedCategory)?.name 
+    : null;
+  
+  const selectedSubcategoryName = selectedSubcategory 
+    ? subcategories.find(s => s.id === selectedSubcategory)?.name 
+    : null;
   
   useEffect(() => {
     // Reset selected subcategory when category changes
@@ -57,8 +72,7 @@ const Index = () => {
   
   const handleCategoryFilter = (categoryId: string) => {
     setSelectedCategory(prevId => prevId === categoryId ? null : categoryId);
-    // Fix: This line had a type comparison error
-    setIsSubcategoriesOpen(selectedCategory === categoryId);
+    setIsSubcategoriesOpen(selectedCategory !== categoryId);
   };
 
   const handleSubcategoryFilter = (subcategoryId: string) => {
@@ -92,6 +106,9 @@ const Index = () => {
         setSelectedMonth={setSelectedMonth}
         totalAmount={totalAmount}
         categoryBreakdown={categoryBreakdown}
+        selectedCategorySubcategoryTotal={selectedCategory ? selectedCategorySubcategoryTotal : undefined}
+        selectedCategoryName={selectedCategoryName || undefined}
+        selectedSubcategoryName={selectedSubcategoryName || undefined}
       />
       
       <FilterSection 
