@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { useExpenseStore } from '@/lib/store';
 import { Expense } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, Check, Repeat } from 'lucide-react';
+import { ArrowLeft, Calendar, Check } from 'lucide-react';
 import { PopoverTrigger, Popover, PopoverContent } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
@@ -16,6 +17,7 @@ import { useMobile } from '@/hooks/use-mobile';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Collapsible,
   CollapsibleContent,
@@ -46,6 +48,9 @@ const AddExpense = () => {
   
   const [isRecurring, setIsRecurring] = useState(editingExpense?.recurring?.isRecurring || false);
   const [recurringMonths, setRecurringMonths] = useState(editingExpense?.recurring?.months || 3);
+  const [recurringMonthsInput, setRecurringMonthsInput] = useState(
+    (editingExpense?.recurring?.months || 3).toString()
+  );
   const [recurringOpen, setRecurringOpen] = useState(false);
   
   const filteredSubcategories = subcategories.filter(
@@ -57,6 +62,14 @@ const AddExpense = () => {
       setSubcategoryId(filteredSubcategories[0].id);
     }
   }, [categoryId, filteredSubcategories, subcategoryId]);
+
+  // Update recurringMonths whenever the text input changes
+  useEffect(() => {
+    const parsedValue = parseInt(recurringMonthsInput);
+    if (!isNaN(parsedValue) && parsedValue > 0) {
+      setRecurringMonths(parsedValue);
+    }
+  }, [recurringMonthsInput]);
   
   const validateForm = () => {
     if (!categoryId || !subcategoryId) {
@@ -74,9 +87,12 @@ const AddExpense = () => {
       return false;
     }
     
-    if (isRecurring && (recurringMonths <= 0 || recurringMonths > 60)) {
-      toast.error('Please enter a valid number of months (1-60)');
-      return false;
+    if (isRecurring) {
+      const parsedMonths = parseInt(recurringMonthsInput);
+      if (isNaN(parsedMonths) || parsedMonths <= 0 || parsedMonths > 60) {
+        toast.error('Please enter a valid number of months (1-60)');
+        return false;
+      }
     }
     
     return true;
@@ -240,11 +256,9 @@ const AddExpense = () => {
                 <div className="flex items-center mt-1">
                   <Input
                     id="recurring-months"
-                    type="number"
-                    min="1"
-                    max="60"
-                    value={recurringMonths}
-                    onChange={(e) => setRecurringMonths(parseInt(e.target.value) || 3)}
+                    type="text"
+                    value={recurringMonthsInput}
+                    onChange={(e) => setRecurringMonthsInput(e.target.value)}
                     className="w-20 mr-2"
                   />
                   <span className="text-sm text-muted-foreground">months</span>
