@@ -7,6 +7,7 @@ import { expenseActions } from './expenseActions';
 import { budgetActions } from './budgetActions';
 import { savingsGoalActions } from './savingsGoalActions';
 import { uiActions } from './uiActions';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useExpenseStore = create<Store>()(
   persist(
@@ -19,6 +20,9 @@ export const useExpenseStore = create<Store>()(
       savingsGoals: [],
       initialized: false,
       theme: 'light',
+      
+      // Supabase client
+      supabaseClient: supabase,
       
       // Actions grouped by domain
       ...categoryActions(set, get),
