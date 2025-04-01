@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
@@ -643,7 +642,8 @@ export const useExpenseStore = create<Store>()(
           }
           
           try {
-            const expenseMonth = expense.date.toISOString().substring(0, 7);
+            // Use format from date-fns to get local time month in YYYY-MM format
+            const expenseMonth = format(expense.date, 'yyyy-MM');
             return expenseMonth === month;
           } catch (error) {
             console.error('Error processing date:', error, expense);
