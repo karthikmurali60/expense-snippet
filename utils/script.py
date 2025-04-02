@@ -57,21 +57,25 @@ def process_user_expenses(user_config):
     if response.status_code == 200:
         expenses = response.json().get('expenses', [])
 
-        # Filter expenses where the user is involved and owed share is greater than 0
+        # Filter expenses where the user is involved and owe share is greater than 0
         my_expenses = []
         for expense in expenses:
+            # Skip if this is a payment or settlement
+            if expense.get('payment', False):
+                continue
+                
             for user in expense['users']:
                 if user['user_id'] == int(USER_ID) and float(user['owed_share']) > 0:
                     my_expenses.append(expense)
 
         # Process the filtered expenses
         if my_expenses:
-            print(f"Found {len(my_expenses)} expenses where you are owed:")
+            print(f"Found {len(my_expenses)} expenses where you owe:")
             for expense in my_expenses:
                 owed_share = next(
                     user['owed_share'] for user in expense['users'] if user['user_id'] == int(USER_ID))
                 
-                print(f"Description: {expense['description']}, Owed Share: {owed_share}, Date: {expense['date']}")
+                print(f"Description: {expense['description']}, Owe Share: {owed_share}, Date: {expense['date']}")
                 
                 # Convert UTC date to PST
                 utc_date = datetime.strptime(expense['date'], '%Y-%m-%dT%H:%M:%SZ')
@@ -95,7 +99,7 @@ def process_user_expenses(user_config):
                     print(f"Failed to add expense: {expense['description']}, Error: {insert_response.error}")
         
         else:
-            print("No expenses where you are owed.")
+            print("No expenses where you owe.")
     else:
         print(f"Failed to fetch expenses. Status Code: {response.status_code}")
 
