@@ -184,7 +184,6 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
 
   fetchCategories: async () => {
     try {
-      console.log("Fetching categories...");
       const { data: categoriesData, error } = await supabaseClient
         .from('categories')
         .select('*')
@@ -195,7 +194,6 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
       }
 
       if (categoriesData) {
-        console.log("Categories fetched:", categoriesData.length);
         const categories = categoriesData.map(cat => convertToCategory(cat));
         set({ categories });
         
@@ -203,7 +201,6 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
         if (categories.length === 0) {
           const user = (await supabaseClient.auth.getUser()).data.user;
           if (user) {
-            console.log("Creating default categories...");
             await Promise.all([
               get().createCategory({ name: 'Food', type: 'food', icon: 'Utensils' }),
               get().createCategory({ name: 'Home', type: 'home', icon: 'Home' }),
@@ -237,7 +234,6 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
 
   fetchSubCategories: async () => {
     try {
-      console.log("Fetching subcategories...");
       const { data: subCategoriesData, error } = await supabaseClient
         .from('subcategories')
         .select('*')
@@ -248,7 +244,6 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
       }
 
       if (subCategoriesData) {
-        console.log("Subcategories fetched:", subCategoriesData.length);
         const subcategories = subCategoriesData.map(subcat => convertToSubCategory(subcat));
         set({ subcategories });
         
@@ -256,7 +251,6 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
         if (subcategories.length === 0 && get().categories.length > 0) {
           const user = (await supabaseClient.auth.getUser()).data.user;
           if (user) {
-            console.log("Creating default subcategories...");
             const categories = get().categories;
             
             // Create default subcategories for each category

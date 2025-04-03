@@ -119,19 +119,16 @@ export const useExpenseStore = create<Store>()(
       theme: 'light',
       
       initializeStore: async () => {
-        console.log("Initializing store...");
         const { data: session } = await supabase.auth.getSession();
         if (session.session) {
           // User is logged in, fetch data from Supabase
           try {
-            console.log("User is logged in, fetching data...");
             await Promise.all([
               get().fetchCategories(),
               get().fetchSubCategories(),
               get().fetchExpenses()
             ]);
             
-            console.log("Store initialized successfully");
             set({ initialized: true });
           } catch (error) {
             console.error("Failed to initialize store:", error);
@@ -140,7 +137,6 @@ export const useExpenseStore = create<Store>()(
           }
         } else {
           // User is not logged in yet, just mark as initialized
-          console.log("User is not logged in, marking as initialized");
           set({ initialized: true });
         }
       },
@@ -331,7 +327,6 @@ export const useExpenseStore = create<Store>()(
 
       fetchCategories: async () => {
         try {
-          console.log("Fetching categories...");
           const { data: categoriesData, error } = await supabase
             .from('categories')
             .select('*')
@@ -342,7 +337,6 @@ export const useExpenseStore = create<Store>()(
           }
 
           if (categoriesData) {
-            console.log("Categories fetched:", categoriesData.length);
             const categories = categoriesData.map(cat => convertToCategory(cat));
             set({ categories });
             
@@ -350,7 +344,6 @@ export const useExpenseStore = create<Store>()(
             if (categories.length === 0) {
               const user = (await supabase.auth.getUser()).data.user;
               if (user) {
-                console.log("Creating default categories...");
                 await Promise.all([
                   get().createCategory({ name: 'Food', type: 'food', icon: 'Utensils' }),
                   get().createCategory({ name: 'Home', type: 'home', icon: 'Home' }),
@@ -385,7 +378,6 @@ export const useExpenseStore = create<Store>()(
 
       fetchSubCategories: async () => {
         try {
-          console.log("Fetching subcategories...");
           const { data: subCategoriesData, error } = await supabase
             .from('subcategories')
             .select('*')
@@ -396,7 +388,6 @@ export const useExpenseStore = create<Store>()(
           }
 
           if (subCategoriesData) {
-            console.log("Subcategories fetched:", subCategoriesData.length);
             const subcategories = subCategoriesData.map(subcat => convertToSubCategory(subcat));
             set({ subcategories });
             
@@ -404,7 +395,6 @@ export const useExpenseStore = create<Store>()(
             if (subcategories.length === 0 && get().categories.length > 0) {
               const user = (await supabase.auth.getUser()).data.user;
               if (user) {
-                console.log("Creating default subcategories...");
                 const categories = get().categories;
                 
                 // Create default subcategories for each category
@@ -464,7 +454,6 @@ export const useExpenseStore = create<Store>()(
 
       fetchExpenses: async () => {
         try {
-          console.log("Fetching expenses...");
           const { data: expensesData, error } = await supabase
             .from('expenses')
             .select('*')
@@ -475,7 +464,6 @@ export const useExpenseStore = create<Store>()(
           }
 
           if (expensesData) {
-            console.log("Expenses fetched:", expensesData.length);
             const expenses = expensesData.map(exp => {
               try {
                 return convertToExpense(exp);
@@ -673,10 +661,11 @@ export const useExpenseStore = create<Store>()(
             id,
             name: category.name,
             total,
-            color: category.type === 'food' ? 'green-500' : 
-                   category.type === 'home' ? 'blue-500' : 
-                   category.type === 'car' ? 'red-500' : 
-                   category.type === 'groceries' ? 'yellow-500' : 'purple-500'
+            color: category.type === 'food' ? 'red-500' : 
+                   category.type === 'home' ? 'orange-500' : 
+                   category.type === 'car' ? 'blue-500' : 
+                   category.type === 'groceries' ? 'green-500' : 
+                   category.type === 'misc' ? 'purple-500' : 'pink-500'
           };
         }).sort((a, b) => b.total - a.total);
         

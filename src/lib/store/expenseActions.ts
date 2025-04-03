@@ -7,7 +7,6 @@ import { convertToExpense, supabaseClient, handleError } from './utils';
 export const expenseActions = (set: any, get: () => Store): ExpenseActions => ({
   fetchExpenses: async () => {
     try {
-      console.log("Fetching expenses...");
       const { data: expensesData, error } = await supabaseClient
         .from('expenses')
         .select('*')
@@ -18,7 +17,6 @@ export const expenseActions = (set: any, get: () => Store): ExpenseActions => ({
       }
 
       if (expensesData) {
-        console.log("Expenses fetched:", expensesData.length);
         const expenses = expensesData.map(exp => {
           try {
             return convertToExpense(exp);

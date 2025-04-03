@@ -33,19 +33,16 @@ export const useExpenseStore = create<Store>()(
       
       // Initialize store action
       initializeStore: async () => {
-        console.log("Initializing store...");
         const { data: session } = await get().supabaseClient.auth.getSession();
         if (session.session) {
           // User is logged in, fetch data from Supabase
           try {
-            console.log("User is logged in, fetching data...");
             await Promise.all([
               get().fetchCategories(),
               get().fetchSubCategories(),
               get().fetchExpenses()
             ]);
             
-            console.log("Store initialized successfully");
             set({ initialized: true });
           } catch (error) {
             console.error("Failed to initialize store:", error);
@@ -53,7 +50,6 @@ export const useExpenseStore = create<Store>()(
           }
         } else {
           // User is not logged in yet, just mark as initialized
-          console.log("User is not logged in, marking as initialized");
           set({ initialized: true });
         }
       },

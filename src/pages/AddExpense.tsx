@@ -123,11 +123,6 @@ const AddExpense = () => {
         })
       };
       
-      console.log('Submitting expense...', {
-        ...expenseData,
-        isEditing: !!editingExpense
-      });
-      
       if (editingExpense) {
         await updateExpense(editingExpense.id, expenseData);
         toast.success('Expense updated successfully');
