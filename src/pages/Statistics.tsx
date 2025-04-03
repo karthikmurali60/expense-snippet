@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { useExpenseStore } from '@/lib/store';
@@ -17,11 +16,11 @@ import { format, parseISO, subMonths } from 'date-fns';
 
 // Define category colors for consistency
 const CATEGORY_COLORS = {
-  food: '#8B5CF6', // Purple
-  home: '#0EA5E9', // Blue
-  car: '#F97316', // Orange
-  groceries: '#10B981', // Green
-  misc: '#EC4899', // Pink
+  food: 'hsl(350 70% 55%)',    // Red
+  home: 'hsl(25 90% 55%)',     // Orange
+  car: 'hsl(200 80% 60%)',     // Blue
+  groceries: 'hsl(130 50% 50%)', // Green
+  misc: 'hsl(270 60% 60%)',    // Purple
 };
 
 const Statistics = () => {
