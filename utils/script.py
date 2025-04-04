@@ -30,7 +30,7 @@ def process_user_expenses(user_config):
     SUBCATEGORY_ID = user_config['subcategory_id']
 
     now_utc = datetime.now(pytz.utc)
-    one_hour_ago_utc = now_utc - timedelta(hours=1)
+    one_hour_ago_utc = now_utc - timedelta(hours=8)
 
     # Format the times to match Splitwise's expected format
     now_utc_str = now_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
