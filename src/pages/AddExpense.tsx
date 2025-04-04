@@ -35,7 +35,8 @@ const AddExpense = () => {
     subcategories, 
     addExpense,
     addRecurringExpense,
-    updateExpense 
+    updateExpense,
+    initialized
   } = useExpenseStore();
   
   const [amount, setAmount] = useState(editingExpense?.amount || 0);
@@ -57,6 +58,13 @@ const AddExpense = () => {
     subcat => subcat.categoryId === categoryId
   );
   
+  // Update category selection once store is initialized and categories are loaded
+  useEffect(() => {
+    if (initialized && categories.length > 0 && !categoryId) {
+      setCategoryId(categories[0]?.id || '');
+    }
+  }, [initialized, categories, categoryId]);
+  
   useEffect(() => {
     if (categoryId && filteredSubcategories.length > 0 && !subcategoryId) {
       setSubcategoryId(filteredSubcategories[0].id);
@@ -72,6 +80,11 @@ const AddExpense = () => {
   }, [recurringMonthsInput]);
   
   const validateForm = () => {
+    if (!initialized) {
+      toast.error('App is still initializing. Please try again in a moment.');
+      return false;
+    }
+    
     if (!categoryId || !subcategoryId) {
       toast.error('Please select a category and subcategory');
       return false;
@@ -147,6 +160,17 @@ const AddExpense = () => {
   const goBack = () => {
     navigate(-1);
   };
+  
+  if (!initialized) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+          <p className="text-muted-foreground">Loading expense data...</p>
+        </div>
+      </Layout>
+    );
+  }
   
   return (
     <Layout>
@@ -252,6 +276,8 @@ const AddExpense = () => {
                   <Input
                     id="recurring-months"
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={recurringMonthsInput}
                     onChange={(e) => setRecurringMonthsInput(e.target.value)}
                     className="w-20 mr-2"
@@ -341,7 +367,7 @@ const AddExpense = () => {
           type="submit" 
           className="w-full" 
           size="lg"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !initialized}
         >
           {isSubmitting 
             ? 'Saving...' 

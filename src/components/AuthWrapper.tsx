@@ -22,8 +22,8 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         
-        // Initialize store if user is logged in
-        if (session?.user) {
+        // Initialize store if user is logged in or if no initialization has been done
+        if (session?.user || !initialized) {
           try {
             await initializeStore();
           } catch (error) {
@@ -45,8 +45,8 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       
-      // Initialize store when user logs in
-      if (event === 'SIGNED_IN' && session?.user) {
+      // Initialize store when user logs in or signs up
+      if ((event === 'SIGNED_IN' || event === 'SIGNED_UP') && session?.user) {
         try {
           await initializeStore();
         } catch (error) {
@@ -57,7 +57,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, [initializeStore]);
+  }, [initializeStore, initialized]);
 
   if (loading) {
     return (
