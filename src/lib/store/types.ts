@@ -65,5 +65,5 @@ export type Actions = CategoryActions & ExpenseActions & BudgetActions & Savings
 
 export type Store = State & Actions;
 
-// Re-export types from the main types file to fix the error
-export { Category, Subcategory, Expense, Budget, SavingsGoal, CategoryType } from '../types';
+// Re-export types from the main types file with 'export type'
+export type { Category, Subcategory, Expense, Budget, SavingsGoal, CategoryType } from '../types';

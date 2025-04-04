@@ -8,8 +8,8 @@ export { convertToCategory, convertToSubCategory, convertToExpense, convertToBud
 export const supabaseClient = supabase;
 
 // Common error handler
-export const handleError = (error: any, message: string) => {
+export const handleError = (error: any, message: string): null => {
   console.error(`${message}:`, error);
-  toast.error(message);
+  toast.error(`${message}: ${error.message}`);
   return null;
 };

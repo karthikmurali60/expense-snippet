@@ -8,10 +8,10 @@ import { handleError } from '../utils';
 export const categoryActions = (set: any, get: () => Store): CategoryActions => ({
   createCategory: async (category) => {
     try {
-      const user = (await supabaseClient.auth.getUser()).data.user;
+      const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error('You must be logged in to create categories');
 
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('categories')
         .insert({
           name: category.name,
@@ -39,10 +39,10 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
   
   createSubCategory: async (subCategory) => {
     try {
-      const user = (await supabaseClient.auth.getUser()).data.user;
+      const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error('You must be logged in to create subcategories');
 
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('subcategories')
         .insert({
           name: subCategory.name,
@@ -76,7 +76,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
         ...(updates.icon && { icon: updates.icon })
       };
       
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('categories')
         .update(dbUpdates)
         .eq('id', id)
@@ -106,7 +106,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
         ...(updates.categoryId && { category_id: updates.categoryId })
       };
       
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('subcategories')
         .update(dbUpdates)
         .eq('id', id)
@@ -143,7 +143,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
       }
       
       // Finally delete the category itself
-      const { error } = await supabaseClient.from('categories').delete().eq('id', id);
+      const { error } = await supabase.from('categories').delete().eq('id', id);
 
       if (error) throw error;
 
@@ -168,7 +168,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
       }
       
       // Then delete the subcategory
-      const { error } = await supabaseClient.from('subcategories').delete().eq('id', id);
+      const { error } = await supabase.from('subcategories').delete().eq('id', id);
 
       if (error) throw error;
 
@@ -186,7 +186,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
 
   fetchCategories: async () => {
     try {
-      const { data: categoriesData, error } = await supabaseClient
+      const { data: categoriesData, error } = await supabase
         .from('categories')
         .select('*')
         .order('name');
@@ -201,7 +201,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
         
         // If no categories, create some default ones
         if (categories.length === 0) {
-          const user = (await supabaseClient.auth.getUser()).data.user;
+          const user = (await supabase.auth.getUser()).data.user;
           if (user) {
             await Promise.all([
               get().createCategory({ name: 'Food', type: 'food', icon: 'Utensils' }),
@@ -212,7 +212,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
             ]);
             
             // Fetch categories again after creating defaults
-            const { data: newCategoriesData } = await supabaseClient
+            const { data: newCategoriesData } = await supabase
               .from('categories')
               .select('*')
               .order('name');
@@ -236,7 +236,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
 
   fetchSubCategories: async () => {
     try {
-      const { data: subCategoriesData, error } = await supabaseClient
+      const { data: subCategoriesData, error } = await supabase
         .from('subcategories')
         .select('*')
         .order('name');
@@ -251,7 +251,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
         
         // If no subcategories and we have categories, create some defaults
         if (subcategories.length === 0 && get().categories.length > 0) {
-          const user = (await supabaseClient.auth.getUser()).data.user;
+          const user = (await supabase.auth.getUser()).data.user;
           if (user) {
             const categories = get().categories;
             
@@ -287,7 +287,7 @@ export const categoryActions = (set: any, get: () => Store): CategoryActions => 
             await Promise.all(createPromises);
             
             // Fetch subcategories again after creating defaults
-            const { data: newSubCategoriesData } = await supabaseClient
+            const { data: newSubCategoriesData } = await supabase
               .from('subcategories')
               .select('*')
               .order('name');
