@@ -5,30 +5,23 @@ import Layout from '@/components/Layout';
 import { useExpenseStore } from '@/lib/store';
 import { Expense } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, Check } from 'lucide-react';
-import { PopoverTrigger, Popover, PopoverContent } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import * as Icons from 'lucide-react';
-import { useMobile } from '@/hooks/use-mobile';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+
+// Import refactored components
+import AmountInput from '@/components/expense/AmountInput';
+import DescriptionInput from '@/components/expense/DescriptionInput';
+import DateSelector from '@/components/expense/DateSelector';
+import RecurringExpenseOption from '@/components/expense/RecurringExpenseOption';
+import CategorySelector from '@/components/expense/CategorySelector';
+import SubcategorySelector from '@/components/expense/SubcategorySelector';
+import SubmitButton from '@/components/expense/SubmitButton';
 
 const AddExpense = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const editingExpense = location.state?.expense as Expense | undefined;
-  const isMobile = useMobile();
   
   const { 
     categories, 
@@ -52,11 +45,6 @@ const AddExpense = () => {
   const [recurringMonthsInput, setRecurringMonthsInput] = useState(
     (editingExpense?.recurring?.months || 3).toString()
   );
-  const [recurringOpen, setRecurringOpen] = useState(false);
-  
-  const filteredSubcategories = subcategories.filter(
-    subcat => subcat.categoryId === categoryId
-  );
   
   // Update category selection once store is initialized and categories are loaded
   useEffect(() => {
@@ -66,10 +54,10 @@ const AddExpense = () => {
   }, [initialized, categories, categoryId]);
   
   useEffect(() => {
-    if (categoryId && filteredSubcategories.length > 0 && !subcategoryId) {
-      setSubcategoryId(filteredSubcategories[0].id);
+    if (categoryId && subcategories.filter(s => s.categoryId === categoryId).length > 0 && !subcategoryId) {
+      setSubcategoryId(subcategories.filter(s => s.categoryId === categoryId)[0].id);
     }
-  }, [categoryId, filteredSubcategories, subcategoryId]);
+  }, [categoryId, subcategories, subcategoryId]);
 
   // Update recurringMonths whenever the text input changes
   useEffect(() => {
@@ -189,195 +177,44 @@ const AddExpense = () => {
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="glass rounded-xl p-5">
-          <label className="text-sm font-medium text-foreground mb-2 block">
-            Amount
-          </label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              $
-            </span>
-            <input
-              type="number"
-              inputMode="decimal"
-              value={amount === 0 ? '' : amount}
-              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-              placeholder="0.00"
-              step="0.01"
-              className="w-full rounded-lg border border-input bg-background px-8 py-2 text-right text-xl font-semibold"
-              autoFocus={!isMobile}
-            />
-          </div>
-        </div>
+        <AmountInput amount={amount} setAmount={setAmount} />
+        <DescriptionInput description={description} setDescription={setDescription} />
+        <DateSelector 
+          date={date} 
+          setDate={setDate} 
+          calendarOpen={calendarOpen} 
+          setCalendarOpen={setCalendarOpen} 
+        />
         
-        <div className="glass rounded-xl p-5">
-          <label className="text-sm font-medium text-foreground mb-2 block">
-            Description
-          </label>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="What was this expense for?"
-            className="w-full rounded-lg border border-input bg-background px-3 py-2"
-          />
-        </div>
+        <RecurringExpenseOption 
+          isRecurring={isRecurring} 
+          setIsRecurring={setIsRecurring}
+          recurringMonthsInput={recurringMonthsInput}
+          setRecurringMonthsInput={setRecurringMonthsInput}
+          isEditing={!!editingExpense}
+        />
         
-        <div className="glass rounded-xl p-5">
-          <label className="text-sm font-medium text-foreground mb-2 block">
-            Date
-          </label>
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal"
-                type="button"
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                {format(date, 'PPP')}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <CalendarComponent
-                mode="single"
-                selected={date}
-                onSelect={(date) => {
-                  if (date) {
-                    setDate(date);
-                    setCalendarOpen(false);
-                  }
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+        <CategorySelector 
+          categories={categories} 
+          categoryId={categoryId} 
+          setCategoryId={setCategoryId}
+          setSubcategoryId={setSubcategoryId}
+        />
         
-        {!editingExpense && (
-          <div className="glass rounded-xl p-5">
-            <div className="flex items-center justify-between mb-2">
-              <Label htmlFor="recurring-switch" className="text-sm font-medium text-foreground">
-                Recurring Expense
-              </Label>
-              <Switch 
-                id="recurring-switch" 
-                checked={isRecurring} 
-                onCheckedChange={setIsRecurring}
-              />
-            </div>
-            
-            {isRecurring && (
-              <div className="mt-4">
-                <Label htmlFor="recurring-months" className="text-sm text-muted-foreground">
-                  Repeat for
-                </Label>
-                <div className="flex items-center mt-1">
-                  <Input
-                    id="recurring-months"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={recurringMonthsInput}
-                    onChange={(e) => setRecurringMonthsInput(e.target.value)}
-                    className="w-20 mr-2"
-                  />
-                  <span className="text-sm text-muted-foreground">months</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  This will create {recurringMonths} expenses, one for each month starting from the selected date.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+        <SubcategorySelector 
+          subcategories={subcategories}
+          subcategoryId={subcategoryId}
+          setSubcategoryId={setSubcategoryId}
+          categoryId={categoryId}
+        />
         
-        <div className="glass rounded-xl p-5">
-          <label className="text-sm font-medium text-foreground mb-2 block">
-            Category
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {categories.map(category => {
-              const IconComponent = (Icons as Record<string, any>)[category.icon] || Icons.Circle;
-              
-              return (
-                <motion.button
-                  key={category.id}
-                  type="button"
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => {
-                    setCategoryId(category.id);
-                    setSubcategoryId('');
-                  }}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border p-3 text-left",
-                    categoryId === category.id
-                      ? `bg-expense-${category.type} text-white border-transparent`
-                      : "bg-background border-border"
-                  )}
-                >
-                  <div className={cn(
-                    "rounded-full p-1",
-                    categoryId === category.id 
-                      ? "bg-white/20" 
-                      : `bg-expense-${category.type} text-white`
-                  )}>
-                    <IconComponent className="h-4 w-4" />
-                  </div>
-                  <span className="flex-1 text-sm font-medium">{category.name}</span>
-                  {categoryId === category.id && (
-                    <Check className="h-4 w-4 ml-auto" />
-                  )}
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-        
-        {categoryId && filteredSubcategories.length > 0 && (
-          <div className="glass rounded-xl p-5">
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Subcategory
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {filteredSubcategories.map(subcategory => (
-                <motion.button
-                  key={subcategory.id}
-                  type="button"
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setSubcategoryId(subcategory.id)}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm font-medium",
-                    subcategoryId === subcategory.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground"
-                  )}
-                >
-                  {subcategory.name}
-                  {subcategoryId === subcategory.id && (
-                    <Check className="inline-block h-3.5 w-3.5 ml-1.5" />
-                  )}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        <Button 
-          type="submit" 
-          className="w-full" 
-          size="lg"
-          disabled={isSubmitting || !initialized}
-        >
-          {isSubmitting 
-            ? 'Saving...' 
-            : editingExpense 
-              ? 'Update Expense' 
-              : isRecurring
-                ? `Add Recurring Expense (${recurringMonths} months)`
-                : 'Add Expense'
-          }
-        </Button>
+        <SubmitButton 
+          isSubmitting={isSubmitting}
+          isEditing={!!editingExpense}
+          isRecurring={isRecurring}
+          recurringMonths={recurringMonths}
+          initialized={initialized}
+        />
       </form>
     </Layout>
   );

@@ -46,7 +46,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
       setSession(session);
       
       // Initialize store when user logs in or signs up
-      if ((event === 'SIGNED_IN' || event === 'SIGNED_UP') && session?.user) {
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
         try {
           await initializeStore();
         } catch (error) {
