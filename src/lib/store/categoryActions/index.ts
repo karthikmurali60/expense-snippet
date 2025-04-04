@@ -1,7 +1,9 @@
 
-import { Category, CategoryActions, State, Store } from '../types';
-import { convertToCategory, convertToSubCategory, supabaseClient, handleError } from '../utils';
+import { CategoryActions, State, Store } from '../types';
+import { convertToCategory, convertToSubCategory } from '../utils/converters';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleError } from '../utils';
 
 export const categoryActions = (set: any, get: () => Store): CategoryActions => ({
   createCategory: async (category) => {

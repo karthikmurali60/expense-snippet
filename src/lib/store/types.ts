@@ -64,3 +64,6 @@ export interface UtilActions {
 export type Actions = CategoryActions & ExpenseActions & BudgetActions & SavingsGoalActions & UIActions & UtilActions;
 
 export type Store = State & Actions;
+
+// Re-export types from the main types file to fix the error
+export { Category, Subcategory, Expense, Budget, SavingsGoal, CategoryType } from '../types';
