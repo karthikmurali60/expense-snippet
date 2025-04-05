@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -107,8 +106,10 @@ const Profile = () => {
         throw new Error(`Failed to check for existing settings: ${checkError.message}`);
       }
       
-      let operation;
+      console.log('Existing settings record:', existingData ? 'Found' : 'Not found');
+      
       let result;
+      const now = new Date().toISOString();
       
       if (existingData) {
         console.log('Updating existing user settings record');
@@ -118,9 +119,11 @@ const Profile = () => {
           .update({
             splitwise_api_key: splitwiseApiKey,
             splitwise_user_id: splitwiseUserId,
-            updated_at: new Date().toISOString()
+            updated_at: now
           })
           .eq('user_id', user.id);
+          
+        console.log('Update result:', result);
       } else {
         console.log('Creating new user settings record');
         // Insert new record
@@ -130,8 +133,11 @@ const Profile = () => {
             user_id: user.id,
             splitwise_api_key: splitwiseApiKey,
             splitwise_user_id: splitwiseUserId,
-            updated_at: new Date().toISOString()
+            created_at: now,
+            updated_at: now
           });
+          
+        console.log('Insert result:', result);
       }
       
       if (result.error) {
