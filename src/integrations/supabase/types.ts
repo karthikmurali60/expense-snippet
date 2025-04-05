@@ -190,6 +190,36 @@ export type Database = {
           },
         ]
       }
+      user_settings: {
+        Row: {
+          id: string
+          user_id: string
+          splitwise_api_key: string | null
+          splitwise_user_id: string | null
+          created_at: string
+          updated_at: string
+          last_sync_time: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          splitwise_api_key?: string | null
+          splitwise_user_id?: string | null
+          created_at?: string
+          updated_at?: string
+          last_sync_time?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          splitwise_api_key?: string | null
+          splitwise_user_id?: string | null
+          created_at?: string
+          updated_at?: string
+          last_sync_time?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { PostgrestError } from '@supabase/supabase-js';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -20,12 +20,30 @@ const AuthForm = () => {
 
     try {
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({
+        const { error: signUpError, data } = await supabase.auth.signUp({
           email,
           password,
         });
 
-        if (error) throw error;
+        if (signUpError) throw signUpError;
+
+        // Create user settings with initial last_sync_time
+        if (data.user) {
+          const { error: settingsError } = await supabase
+            .from('user_settings')
+            .insert({
+              user_id: data.user.id,
+              last_sync_time: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+
+          if (settingsError) {
+            console.error('Error creating user settings:', settingsError);
+            toast.error('Account created but failed to initialize settings');
+          }
+        }
+
         toast.success('Account created! You can now sign in.');
         setMode('signin');
       } else {

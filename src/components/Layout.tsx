@@ -13,6 +13,7 @@ import {
   LogOut,
   User,
   Trash,
+  RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { syncSplitwiseExpenses } from "@/integrations/splitwise/client";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -38,6 +40,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { categories } = useExpenseStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -60,6 +63,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const { error } = await supabase.auth.signOut();
     if (!error) {
       window.location.href = "/"; // Redirect to login page
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      setIsSyncing(true);
+      await syncSplitwiseExpenses();
+      toast.success("Successfully synced expenses from Splitwise");
+    } catch (error) {
+      console.error("Error syncing expenses:", error);
+      if (error instanceof Error && error.message.includes('No previous sync time found')) {
+        toast.error("Please set up Splitwise integration before syncing");
+      } else {
+        toast.error("Failed to sync expenses from Splitwise");
+      }
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -198,30 +218,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Plus className="h-5 w-5" />
                   <span>Add Expense</span>
                 </Link>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="flex items-center gap-2 px-3 py-2 w-full justify-start"
-                    >
-                      <User className="h-5 w-5" />
-                      <span>Profile</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <div className="px-2 py-1.5 text-sm font-medium">
-                      Hello, {email}!
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={handleSignOut}
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Sign Out</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Link
+                  to="/profile"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isActive("/profile")
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent"
+                  )}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <User className="h-5 w-5" />
+                  <span>Profile</span>
+                </Link>
+
+                <button
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isSyncing ? "opacity-50 cursor-not-allowed" : "hover:bg-accent"
+                  )}
+                >
+                  <RefreshCw className={cn("h-5 w-5", isSyncing && "animate-spin")} />
+                  <span>Sync Splitwise</span>
+                </button>
               </nav>
             </motion.div>
           </>
@@ -298,32 +319,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span>Goals</span>
             </Link>
 
-            <div className="pt-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="default"
-                    className="flex items-center gap-2 px-3 py-2 w-full"
-                  >
-                    <User className="h-5 w-5" />
-                    <span>Profile</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-2 py-1.5 text-sm font-medium">
-                    Hello, {email}!
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    onClick={handleSignOut}
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sign Out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <Link
+              to="/profile"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                isActive("/profile")
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
+              )}
+            >
+              <User className="h-5 w-5" />
+              <span>Profile</span>
+            </Link>
+
+            <button
+              onClick={handleSync}
+              disabled={isSyncing}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                isSyncing ? "opacity-50 cursor-not-allowed" : "hover:bg-accent"
+              )}
+            >
+              <RefreshCw className={cn("h-5 w-5", isSyncing && "animate-spin")} />
+              <span>Sync Splitwise</span>
+            </button>
           </nav>
         </aside>
 

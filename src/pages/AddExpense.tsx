@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -17,6 +16,9 @@ import RecurringExpenseOption from '@/components/expense/RecurringExpenseOption'
 import CategorySelector from '@/components/expense/CategorySelector';
 import SubcategorySelector from '@/components/expense/SubcategorySelector';
 import SubmitButton from '@/components/expense/SubmitButton';
+import SplitwiseIntegration from '@/components/expense/SplitwiseIntegration';
+import { createSplitwiseExpense } from '@/integrations/splitwise/client';
+import { syncSplitwiseExpenses } from '@/integrations/splitwise/client';
 
 const AddExpense = () => {
   const navigate = useNavigate();
@@ -45,6 +47,10 @@ const AddExpense = () => {
   const [recurringMonthsInput, setRecurringMonthsInput] = useState(
     (editingExpense?.recurring?.months || 3).toString()
   );
+  
+  // Splitwise integration state
+  const [isSplitwiseEnabled, setIsSplitwiseEnabled] = useState(false);
+  const [selectedSplitwiseGroupId, setSelectedSplitwiseGroupId] = useState<number | null>(null);
   
   // Update category selection once store is initialized and categories are loaded
   useEffect(() => {
@@ -96,6 +102,11 @@ const AddExpense = () => {
       }
     }
     
+    if (isSplitwiseEnabled && !selectedSplitwiseGroupId) {
+      toast.error('Please select a Splitwise group');
+      return false;
+    }
+    
     return true;
   };
   
@@ -124,22 +135,46 @@ const AddExpense = () => {
         })
       };
       
+      let savedExpense;
+      
       if (editingExpense) {
-        await updateExpense(editingExpense.id, expenseData);
+        savedExpense = await updateExpense(editingExpense.id, expenseData);
         toast.success('Expense updated successfully');
       } else {
-        if (isRecurring) {
-          const expenses = await addRecurringExpense(expenseData);
-          toast.success(`${expenses.length} recurring expenses added successfully`);
+        if (isSplitwiseEnabled && selectedSplitwiseGroupId) {
+          // Format date as YYYY-MM-DD
+          const formattedDate = format(date, 'yyyy-MM-dd');
+          
+          // Create Splitwise expense
+          const splitwiseResponse = await createSplitwiseExpense({
+            cost: amount.toString(),
+            description: description,
+            date: formattedDate,
+            group_id: selectedSplitwiseGroupId,
+          });
+          
+          // Sync Splitwise expenses to update the local state
+          await syncSplitwiseExpenses();
+          
+          toast.success('Expense added to Splitwise');
+          navigate('/');
+          return;
         } else {
-          await addExpense(expenseData);
-          toast.success('Expense added successfully');
+          if (isRecurring) {
+            const expenses = await addRecurringExpense(expenseData);
+            savedExpense = expenses[0];
+            toast.success(`${expenses.length} recurring expenses added successfully`);
+          } else {
+            savedExpense = await addExpense(expenseData);
+            toast.success('Expense added successfully');
+          }
         }
       }
+      
       navigate('/');
-    } catch (error: any) {
-      console.error('Failed to save expense:', error);
-      toast.error('Failed to save expense: ' + error.message);
+    } catch (error) {
+      console.error('Error submitting expense:', error);
+      toast.error('Failed to submit expense');
     } finally {
       setIsSubmitting(false);
     }
@@ -207,6 +242,16 @@ const AddExpense = () => {
           setSubcategoryId={setSubcategoryId}
           categoryId={categoryId}
         />
+        
+        {!editingExpense && (
+          <SplitwiseIntegration
+            isEnabled={isSplitwiseEnabled}
+            setIsEnabled={setIsSplitwiseEnabled}
+            selectedGroupId={selectedSplitwiseGroupId}
+            setSelectedGroupId={setSelectedSplitwiseGroupId}
+            amount={amount}
+          />
+        )}
         
         <SubmitButton 
           isSubmitting={isSubmitting}
