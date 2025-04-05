@@ -33,13 +33,6 @@ export interface CreateSplitwiseExpense {
   description: string;
   date?: string; // Optional since the API will use current date if not provided
   group_id: number;
-  // The following fields are no longer needed as the API uses split_equally: true
-  // users__0__user_id?: number;
-  // users__0__paid_share?: string;
-  // users__0__owed_share?: string;
-  // users__1__user_id?: number;
-  // users__1__paid_share?: string;
-  // users__1__owed_share?: string;
 }
 
 // Interface for Splitwise expense response
@@ -89,20 +82,26 @@ export const getSplitwiseApiKey = async (): Promise<{ apiKey: string | null; las
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { apiKey: null, lastSyncTime: null, splitwiseUserId: null };
 
+    console.log('Fetching Splitwise API key for user:', user.id);
     const { data, error } = await supabase
       .from('user_settings')
       .select('splitwise_api_key, last_sync_time, splitwise_user_id')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching user settings:', error);
+      throw error;
+    }
+    
+    console.log('User settings found:', data ? 'Yes' : 'No');
     return { 
       apiKey: data?.splitwise_api_key || null,
       lastSyncTime: data?.last_sync_time || null,
       splitwiseUserId: data?.splitwise_user_id || null
     };
   } catch (error) {
-    console.error('Error fetching Splitwise API key:', error);
+    console.error('Error in getSplitwiseApiKey:', error);
     return { apiKey: null, lastSyncTime: null, splitwiseUserId: null };
   }
 };
@@ -113,8 +112,12 @@ export const getSplitwiseApiKey = async (): Promise<{ apiKey: string | null; las
 export const fetchSplitwiseGroups = async (): Promise<SplitwiseGroup[]> => {
   try {
     const { apiKey } = await getSplitwiseApiKey();
-    if (!apiKey) throw new Error('Splitwise API key not found');
+    if (!apiKey) {
+      console.error('Splitwise API key not found');
+      throw new Error('Splitwise API key not found. Please add your API key in the Profile settings.');
+    }
 
+    console.log('Fetching Splitwise groups with API key');
     const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_groups?api_key=${encodeURIComponent(apiKey)}`, {
       headers: {
         'Content-Type': 'application/json'
@@ -122,10 +125,13 @@ export const fetchSplitwiseGroups = async (): Promise<SplitwiseGroup[]> => {
     });
 
     if (!response.ok) {
-      throw new Error(`Splitwise API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Splitwise API error response:', errorText);
+      throw new Error(`Splitwise API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('Splitwise groups fetched successfully:', data);
     return data || [];
   } catch (error) {
     console.error('Error fetching Splitwise groups:', error);
@@ -270,4 +276,4 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
     console.error('Error syncing Splitwise expenses:', error);
     throw error;
   }
-}; 
+};

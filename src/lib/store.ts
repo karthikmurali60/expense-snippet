@@ -126,7 +126,8 @@ export const useExpenseStore = create<Store>()(
             await Promise.all([
               get().fetchCategories(),
               get().fetchSubCategories(),
-              get().fetchExpenses()
+              get().fetchExpenses(),
+              get().fetchBudgets(),
             ]);
             
             set({ initialized: true });
@@ -672,10 +673,51 @@ export const useExpenseStore = create<Store>()(
         return { totalAmount, categoryBreakdown };
       },
       
+      fetchBudgets: async () => {
+        try {
+          const { data: budgetsData, error } = await supabase
+            .from('budgets')
+            .select('*')
+            .order('month');
+
+          if (error) {
+            throw error;
+          }
+
+          if (budgetsData) {
+            const budgets = budgetsData.map(budget => convertToBudget(budget));
+            set({ budgets });
+            return budgets;
+          }
+          return [];
+        } catch (error: any) {
+          console.error('Failed to fetch budgets:', error);
+          toast.error('Failed to fetch budgets: ' + error.message);
+          return [];
+        }
+      },
+      
       addBudget: async (budget) => {
         try {
+          console.log('Adding budget:', budget);
           const user = (await supabase.auth.getUser()).data.user;
-          if (!user) throw new Error('You must be logged in to add budgets');
+          if (!user) {
+            toast.error('You must be logged in to add budgets');
+            return null;
+          }
+
+          // Check if a budget for this category and month already exists
+          const { data: existingBudget } = await supabase
+            .from('budgets')
+            .select('id')
+            .eq('category_id', budget.categoryId)
+            .eq('month', budget.month)
+            .maybeSingle();
+
+          if (existingBudget) {
+            toast.error('A budget for this category and month already exists');
+            return null;
+          }
 
           const { data, error } = await supabase
             .from('budgets')
@@ -688,25 +730,30 @@ export const useExpenseStore = create<Store>()(
             .select()
             .single();
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error adding budget:', error);
+            throw error;
+          }
 
           if (data) {
             const newBudget = convertToBudget(data);
             set((state) => ({
               budgets: [...state.budgets, newBudget]
             }));
+            toast.success('Budget added successfully');
             return newBudget;
           }
           return null;
         } catch (error: any) {
           console.error('Failed to add budget:', error);
           toast.error('Failed to add budget: ' + error.message);
-          throw error;
+          return null;
         }
       },
       
       updateBudget: async (id, updates) => {
         try {
+          console.log('Updating budget:', id, updates);
           const dbUpdates: any = {};
           
           if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
@@ -720,20 +767,24 @@ export const useExpenseStore = create<Store>()(
             .select()
             .single();
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error updating budget:', error);
+            throw error;
+          }
 
           if (data) {
             const updatedBudget = convertToBudget(data);
             set((state) => ({
               budgets: state.budgets.map((budget) => (budget.id === id ? updatedBudget : budget))
             }));
+            toast.success('Budget updated successfully');
             return updatedBudget;
           }
           return null;
         } catch (error: any) {
           console.error('Failed to update budget:', error);
           toast.error('Failed to update budget: ' + error.message);
-          throw error;
+          return null;
         }
       },
       

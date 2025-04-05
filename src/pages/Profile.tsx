@@ -35,7 +35,7 @@ const Profile = () => {
             .from('user_settings')
             .select('splitwise_api_key, splitwise_user_id, last_sync_time')
             .eq('user_id', user.id)
-            .single();
+            .maybeSingle();
             
           if (data && !error) {
             setSplitwiseApiKey(data.splitwise_api_key || '');
@@ -84,22 +84,36 @@ const Profile = () => {
   };
 
   const handleSaveApiKey = async () => {
-    if (!user) return;
+    if (!user) {
+      toast.error('You must be logged in to save API keys');
+      return;
+    }
     
     setIsSavingApiKey(true);
     try {
+      console.log('Saving API key for user:', user.id);
+      console.log('Splitwise API key:', splitwiseApiKey ? '✓ Provided' : '✗ Not provided');
+      console.log('Splitwise User ID:', splitwiseUserId ? '✓ Provided' : '✗ Not provided');
+      
       // Check if a record already exists
-      const { data: existingData } = await supabase
+      const { data: existingData, error: checkError } = await supabase
         .from('user_settings')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('Error checking for existing settings:', checkError);
+        throw new Error(`Failed to check for existing settings: ${checkError.message}`);
+      }
       
       let operation;
+      let result;
       
       if (existingData) {
+        console.log('Updating existing user settings record');
         // Update existing record
-        operation = supabase
+        result = await supabase
           .from('user_settings')
           .update({
             splitwise_api_key: splitwiseApiKey,
@@ -108,8 +122,9 @@ const Profile = () => {
           })
           .eq('user_id', user.id);
       } else {
+        console.log('Creating new user settings record');
         // Insert new record
-        operation = supabase
+        result = await supabase
           .from('user_settings')
           .insert({
             user_id: user.id,
@@ -119,11 +134,15 @@ const Profile = () => {
           });
       }
       
-      const { error } = await operation;
+      if (result.error) {
+        console.error('Error saving settings:', result.error);
+        throw result.error;
+      }
       
-      if (error) throw error;
+      console.log('Settings saved successfully');
       toast.success('Splitwise settings saved successfully');
     } catch (error: any) {
+      console.error('Failed to save settings:', error);
       toast.error('Failed to save settings: ' + error.message);
     } finally {
       setIsSavingApiKey(false);

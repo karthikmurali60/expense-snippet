@@ -44,6 +44,7 @@ export interface BudgetActions {
     spentAmount: number;
     percentage: number;
   }[];
+  fetchBudgets: () => Promise<Budget[]>;
 }
 
 export interface SavingsGoalActions {

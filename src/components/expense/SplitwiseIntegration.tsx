@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -29,7 +30,9 @@ const SplitwiseIntegration: React.FC<SplitwiseIntegrationProps> = ({
       if (isEnabled) {
         setIsLoading(true);
         try {
+          console.log('Fetching Splitwise groups...');
           const fetchedGroups = await fetchSplitwiseGroups();
+          console.log('Fetched groups:', fetchedGroups);
           setGroups(fetchedGroups);
           
           // Auto-select the first group if none is selected
@@ -111,4 +114,4 @@ const SplitwiseIntegration: React.FC<SplitwiseIntegrationProps> = ({
   );
 };
 
-export default SplitwiseIntegration; 
+export default SplitwiseIntegration;

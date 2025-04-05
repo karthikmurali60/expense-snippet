@@ -24,11 +24,19 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   const handleSignOut = async () => {
     try {
       setIsLoading(true);
+      console.log('Signing out...');
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Error signing out:', error);
+        throw error;
+      }
+      
+      console.log('Sign out successful');
       toast.success('Signed out successfully');
       navigate('/');
     } catch (error: any) {
+      console.error('Error in sign out process:', error);
       toast.error('Error signing out: ' + error.message);
     } finally {
       setIsLoading(false);
