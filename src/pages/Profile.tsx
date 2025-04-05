@@ -9,17 +9,19 @@ import { toast } from 'sonner';
 import { Loader2, User as UserIcon, Mail, Key, LogOut, Link as LinkIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [splitwiseApiKey, setSplitwiseApiKey] = useState('');
   const [splitwiseUserId, setSplitwiseUserId] = useState('');
-  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const getUser = async () => {
@@ -134,6 +136,7 @@ const Profile = () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast.success('Signed out successfully');
+      navigate('/');
     } catch (error: any) {
       toast.error('Error signing out: ' + error.message);
     } finally {
@@ -171,7 +174,9 @@ const Profile = () => {
           </Avatar>
           <div>
             <h2 className="text-xl font-semibold">{user?.email}</h2>
-            <p className="text-sm text-muted-foreground">Account created {new Date(user?.created_at || '').toLocaleDateString()}</p>
+            {user?.created_at && (
+              <p className="text-sm text-muted-foreground">Account created {new Date(user.created_at).toLocaleDateString()}</p>
+            )}
           </div>
         </div>
 

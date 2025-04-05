@@ -27,7 +27,6 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast.success('Signed out successfully');
-      // Redirect to home page after sign out
       navigate('/');
     } catch (error: any) {
       toast.error('Error signing out: ' + error.message);

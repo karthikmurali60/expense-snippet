@@ -1,4 +1,3 @@
-
 import { toast } from 'sonner';
 import { BudgetActions, State, Store } from './types';
 import { convertToBudget, handleError } from './utils';
@@ -9,6 +8,17 @@ export const budgetActions = (set: any, get: () => Store): BudgetActions => ({
     try {
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error('You must be logged in to add budgets');
+
+      const { data: existingBudgets } = await supabase
+        .from('budgets')
+        .select('id')
+        .eq('category_id', budget.categoryId)
+        .eq('month', budget.month)
+        .eq('user_id', user.id);
+
+      if (existingBudgets && existingBudgets.length > 0) {
+        return get().updateBudget(existingBudgets[0].id, { amount: budget.amount });
+      }
 
       const { data, error } = await supabase
         .from('budgets')
@@ -28,6 +38,7 @@ export const budgetActions = (set: any, get: () => Store): BudgetActions => ({
         set((state: State) => ({
           budgets: [...state.budgets, newBudget]
         }));
+        toast.success('Budget added successfully');
         return newBudget;
       }
       return null;
@@ -59,6 +70,7 @@ export const budgetActions = (set: any, get: () => Store): BudgetActions => ({
         set((state: State) => ({
           budgets: state.budgets.map((budget) => (budget.id === id ? updatedBudget : budget))
         }));
+        toast.success('Budget updated successfully');
         return updatedBudget;
       }
       return null;

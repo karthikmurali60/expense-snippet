@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { CategoryType, Category, Subcategory, Expense, Budget, SavingsGoal } from '../types';
+import type { CategoryType, Category, Subcategory, Expense, Budget, SavingsGoal } from '../types';
 
 export interface State {
   categories: Category[];
@@ -65,5 +65,5 @@ export type Actions = CategoryActions & ExpenseActions & BudgetActions & Savings
 
 export type Store = State & Actions;
 
-// Re-export types from the main types file with 'export type'
-export type { Category, Subcategory, Expense, Budget, SavingsGoal, CategoryType } from '../types';
+// Re-export types from the main types file 
+export type { Category, Subcategory, Expense, Budget, SavingsGoal, CategoryType };
