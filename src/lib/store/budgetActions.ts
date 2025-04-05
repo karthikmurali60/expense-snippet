@@ -1,3 +1,4 @@
+
 import { toast } from 'sonner';
 import { BudgetActions, State, Store } from './types';
 import { convertToBudget, handleError } from './utils';
@@ -151,5 +152,28 @@ export const budgetActions = (set: any, get: () => Store): BudgetActions => ({
     }
     
     return result;
+  },
+  
+  fetchBudgets: async () => {
+    try {
+      const { data: budgetsData, error } = await supabase
+        .from('budgets')
+        .select('*')
+        .order('month');
+
+      if (error) {
+        throw error;
+      }
+
+      if (budgetsData) {
+        const budgets = budgetsData.map(budget => convertToBudget(budget));
+        set({ budgets });
+        return budgets;
+      }
+      return [];
+    } catch (error: any) {
+      handleError(error, 'Failed to fetch budgets');
+      return [];
+    }
   }
 });
