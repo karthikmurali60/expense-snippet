@@ -192,31 +192,31 @@ export type Database = {
       }
       user_settings: {
         Row: {
+          created_at: string
           id: string
-          user_id: string
+          last_sync_time: string | null
           splitwise_api_key: string | null
           splitwise_user_id: string | null
-          created_at: string
           updated_at: string
-          last_sync_time: string
+          user_id: string
         }
         Insert: {
+          created_at?: string
           id?: string
-          user_id: string
+          last_sync_time?: string | null
           splitwise_api_key?: string | null
           splitwise_user_id?: string | null
-          created_at?: string
           updated_at?: string
-          last_sync_time?: string
+          user_id: string
         }
         Update: {
+          created_at?: string
           id?: string
-          user_id?: string
+          last_sync_time?: string | null
           splitwise_api_key?: string | null
           splitwise_user_id?: string | null
-          created_at?: string
           updated_at?: string
-          last_sync_time?: string
+          user_id?: string
         }
         Relationships: []
       }

@@ -1,15 +1,16 @@
 
 import { toast } from 'sonner';
 import { BudgetActions, State, Store } from './types';
-import { convertToBudget, supabaseClient, handleError } from './utils';
+import { convertToBudget, handleError } from './utils';
+import { supabase } from '@/integrations/supabase/client';
 
 export const budgetActions = (set: any, get: () => Store): BudgetActions => ({
   addBudget: async (budget) => {
     try {
-      const user = (await supabaseClient.auth.getUser()).data.user;
+      const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error('You must be logged in to add budgets');
 
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('budgets')
         .insert({
           amount: budget.amount,
@@ -31,7 +32,8 @@ export const budgetActions = (set: any, get: () => Store): BudgetActions => ({
       }
       return null;
     } catch (error: any) {
-      return handleError(error, 'Failed to add budget');
+      handleError(error, 'Failed to add budget');
+      throw error;
     }
   },
   
@@ -43,7 +45,7 @@ export const budgetActions = (set: any, get: () => Store): BudgetActions => ({
       if (updates.month !== undefined) dbUpdates.month = updates.month;
       if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
 
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('budgets')
         .update(dbUpdates)
         .eq('id', id)
@@ -61,13 +63,14 @@ export const budgetActions = (set: any, get: () => Store): BudgetActions => ({
       }
       return null;
     } catch (error: any) {
-      return handleError(error, 'Failed to update budget');
+      handleError(error, 'Failed to update budget');
+      throw error;
     }
   },
   
   deleteBudget: async (id) => {
     try {
-      const { error } = await supabaseClient.from('budgets').delete().eq('id', id);
+      const { error } = await supabase.from('budgets').delete().eq('id', id);
 
       if (error) throw error;
 

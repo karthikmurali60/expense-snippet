@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useNavigate } from 'react-router-dom';
 
 interface UserProfileProps {
   user: User;
@@ -18,6 +19,7 @@ interface UserProfileProps {
 
 const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     try {
@@ -25,6 +27,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast.success('Signed out successfully');
+      // Redirect to home page after sign out
+      navigate('/');
     } catch (error: any) {
       toast.error('Error signing out: ' + error.message);
     } finally {
@@ -41,6 +45,11 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
         <div className="px-2 py-1.5">
           <p className="text-sm font-medium">{user.email}</p>
         </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/profile')}>
+          <UserIcon className="mr-2 h-4 w-4" />
+          Profile
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} disabled={isLoading}>
           <LogOut className="mr-2 h-4 w-4" />

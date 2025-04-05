@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,18 +86,39 @@ const Profile = () => {
     
     setIsSavingApiKey(true);
     try {
-      const { error } = await supabase
+      // Check if a record already exists
+      const { data: existingData } = await supabase
         .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          splitwise_api_key: splitwiseApiKey,
-          splitwise_user_id: splitwiseUserId,
-          last_sync_time: lastSyncTime,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
-        });
-
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      
+      let operation;
+      
+      if (existingData) {
+        // Update existing record
+        operation = supabase
+          .from('user_settings')
+          .update({
+            splitwise_api_key: splitwiseApiKey,
+            splitwise_user_id: splitwiseUserId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Insert new record
+        operation = supabase
+          .from('user_settings')
+          .insert({
+            user_id: user.id,
+            splitwise_api_key: splitwiseApiKey,
+            splitwise_user_id: splitwiseUserId,
+            updated_at: new Date().toISOString()
+          });
+      }
+      
+      const { error } = await operation;
+      
       if (error) throw error;
       toast.success('Splitwise settings saved successfully');
     } catch (error: any) {
@@ -108,11 +130,14 @@ const Profile = () => {
 
   const handleSignOut = async () => {
     try {
+      setIsUpdating(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast.success('Signed out successfully');
     } catch (error: any) {
       toast.error('Error signing out: ' + error.message);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -279,4 +304,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
+export default Profile;
