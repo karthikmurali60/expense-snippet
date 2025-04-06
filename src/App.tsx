@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +16,7 @@ import Budgets from "./pages/Budgets";
 import Goals from "./pages/Goals";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import UploadReceipt from "./pages/UploadReceipt";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,6 +88,7 @@ const App = () => {
                 <Route path="/budgets" element={<Budgets />} />
                 <Route path="/goals" element={<Goals />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/upload-receipt" element={<UploadReceipt />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AnimatePresence>

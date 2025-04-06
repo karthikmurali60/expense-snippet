@@ -14,6 +14,7 @@ import {
   User,
   Trash,
   RefreshCw,
+  Receipt,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -212,12 +213,44 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
                 <Link
                   to="/add"
-                  className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                  onClick={() => setMenuOpen(false)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isActive("/add")
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
+                  )}
                 >
                   <Plus className="h-5 w-5" />
                   <span>Add Expense</span>
                 </Link>
+
+                <Link
+                  to="/upload-receipt"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isActive("/upload-receipt")
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent"
+                  )}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <Receipt className="h-5 w-5" />
+                  <span>Upload Receipt</span>
+                </Link>
+
+                
+
+                <button
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                    isSyncing ? "opacity-50 cursor-not-allowed" : "hover:bg-accent"
+                  )}
+                >
+                  <RefreshCw className={cn("h-5 w-5", isSyncing && "animate-spin")} />
+                  <span>Sync Splitwise</span>
+                </button>
                 <Link
                   to="/profile"
                   className={cn(
@@ -231,18 +264,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <User className="h-5 w-5" />
                   <span>Profile</span>
                 </Link>
-
-                <button
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  className={cn(
-                    "flex w-full items-center gap-2 px-3 py-2 rounded-lg transition-colors",
-                    isSyncing ? "opacity-50 cursor-not-allowed" : "hover:bg-accent"
-                  )}
-                >
-                  <RefreshCw className={cn("h-5 w-5", isSyncing && "animate-spin")} />
-                  <span>Sync Splitwise</span>
-                </button>
               </nav>
             </motion.div>
           </>
@@ -319,17 +340,32 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span>Goals</span>
             </Link>
 
+            
+
             <Link
-              to="/profile"
+              to="/add"
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
-                isActive("/profile")
+                isActive("/add")
                   ? "bg-primary text-primary-foreground"
                   : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
               )}
             >
-              <User className="h-5 w-5" />
-              <span>Profile</span>
+              <Plus className="h-5 w-5" />
+              <span>Add Expense</span>
+            </Link>
+
+            <Link
+              to="/upload-receipt"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                isActive("/upload-receipt")
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
+              )}
+            >
+              <Receipt className="h-5 w-5" />
+              <span>Upload Receipt</span>
             </Link>
 
             <button
@@ -343,6 +379,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <RefreshCw className={cn("h-5 w-5", isSyncing && "animate-spin")} />
               <span>Sync Splitwise</span>
             </button>
+            <Link
+              to="/profile"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                isActive("/profile")
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-accent dark:hover:bg-accent/50 dark:text-foreground/90 dark:hover:text-foreground"
+              )}
+            >
+              <User className="h-5 w-5" />
+              <span>Profile</span>
+            </Link>
           </nav>
         </aside>
 
