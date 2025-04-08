@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { useExpenseStore } from '@/lib/store';
@@ -158,9 +157,13 @@ const Budgets = () => {
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{category.name}</span>
-                    {budget.budgetAmount > 0 && (
+                    {budget.budgetAmount > 0 ? (
                       <span className="text-sm text-muted-foreground dark:text-foreground/70">
                         ({formatCurrency(budget.spentAmount)} of {formatCurrency(budget.budgetAmount)})
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground dark:text-foreground/70">
+                        ({formatCurrency(budget.spentAmount)} spent)
                       </span>
                     )}
                   </div>
@@ -186,18 +189,23 @@ const Budgets = () => {
                   </div>
                 </div>
                 
-                <Progress 
-                  value={percentage} 
-                  className={`h-2 ${isOverBudget ? 'bg-destructive/20' : 'bg-secondary'}`}
-                />
-                <div className="flex justify-between text-sm mt-1">
-                  <span className={isOverBudget ? 'text-destructive font-medium' : ''}>
-                    {isOverBudget ? 'Over budget!' : `${Math.round(percentage)}% used`}
-                  </span>
-                  {budget.budgetAmount === 0 && (
+                {budget.budgetAmount > 0 ? (
+                  <>
+                    <Progress 
+                      value={percentage} 
+                      className={`h-2 ${isOverBudget ? 'bg-destructive/20' : 'bg-secondary'}`}
+                    />
+                    <div className="flex justify-between text-sm mt-1">
+                      <span className={isOverBudget ? 'text-destructive font-medium' : ''}>
+                        {isOverBudget ? 'Over budget!' : `${Math.round(percentage)}% used`}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between text-sm mt-1">
                     <span className="text-muted-foreground dark:text-foreground/70">No budget set</span>
-                  )}
-                </div>
+                  </div>
+                )}
               </motion.div>
             );
           })}
