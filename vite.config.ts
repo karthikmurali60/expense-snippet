@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks: undefined,
       },
     },
+    sourcemap: true,
   },
   plugins: [
     react(),
