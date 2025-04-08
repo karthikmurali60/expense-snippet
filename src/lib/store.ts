@@ -828,7 +828,7 @@ export const useExpenseStore = create<Store>()(
           if (!totalSpentByCategory[expense.categoryId]) {
             totalSpentByCategory[expense.categoryId] = 0;
           }
-          totalSpentByCategory[expense.categoryId] += expense.amount;
+            totalSpentByCategory[expense.categoryId] += expense.amount;
         }
         
         // Create budget progress data
@@ -846,18 +846,6 @@ export const useExpenseStore = create<Store>()(
             spentAmount: spent,
             percentage: Math.min(percentage, 100) // Cap at 100%
           });
-        }
-        
-        // Add entries for categories without budgets but with expenses
-        for (const categoryId in totalSpentByCategory) {
-          if (!budgets[categoryId]) {
-            result.push({
-              categoryId,
-              budgetAmount: 0,
-              spentAmount: totalSpentByCategory[categoryId],
-              percentage: 100 // No budget = 100% used
-            });
-          }
         }
         
         return result;
