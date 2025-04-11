@@ -245,7 +245,7 @@ const Profile = () => {
 
               <Button
                 onClick={handlePasswordUpdate}
-                disabled={isUpdating || !newPassword || !confirmPassword}
+                disabled={isUpdating || !newPassword || !confirmPassword || newPassword !== confirmPassword}
               >
                 {isUpdating ? (
                   <>
