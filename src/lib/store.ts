@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CategoryType, Category, Subcategory, Expense, Budget, SavingsGoal, RecurringExpenseDetails } from './types';
 import { addMonths, format } from 'date-fns';
+import { categorySchema, subcategorySchema, expenseSchema, budgetSchema, savingsGoalSchema } from './validation';
+import { PostgrestError } from '@supabase/supabase-js';
 
 export interface State {
   categories: Category[];
@@ -144,63 +146,65 @@ export const useExpenseStore = create<Store>()(
       
       createCategory: async (category) => {
         try {
-          const user = (await supabase.auth.getUser()).data.user;
+          const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error('You must be logged in to create categories');
 
+          const validatedCategory = categorySchema.parse(category);
           const { data, error } = await supabase
             .from('categories')
             .insert({
-              name: category.name,
-              type: category.type,
-              icon: category.icon,
+              name: validatedCategory.name,
+              type: validatedCategory.type,
+              icon: validatedCategory.icon || 'default',
               user_id: user.id
             })
             .select()
             .single();
 
           if (error) throw error;
+          if (!data) throw new Error('Failed to create category');
 
-          if (data) {
-            const newCategory = convertToCategory(data);
-            set((state) => ({
-              categories: [...state.categories, newCategory]
-            }));
-            return newCategory;
-          }
-          return null;
-        } catch (error: any) {
-          toast.error('Failed to create category: ' + error.message);
+          const newCategory = convertToCategory(data);
+          set((state) => ({
+            categories: [...state.categories, newCategory]
+          }));
+
+          return newCategory;
+        } catch (error: unknown) {
+          console.error('Error creating category:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to create category');
           return null;
         }
       },
       
       createSubCategory: async (subCategory) => {
         try {
-          const user = (await supabase.auth.getUser()).data.user;
+          const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error('You must be logged in to create subcategories');
 
+          const validatedSubCategory = subcategorySchema.parse(subCategory);
           const { data, error } = await supabase
             .from('subcategories')
             .insert({
-              name: subCategory.name,
-              category_id: subCategory.categoryId,
+              name: validatedSubCategory.name,
+              category_id: validatedSubCategory.categoryId,
               user_id: user.id
             })
             .select()
             .single();
 
           if (error) throw error;
+          if (!data) throw new Error('Failed to create subcategory');
 
-          if (data) {
-            const newSubCategory = convertToSubCategory(data);
-            set((state) => ({
-              subcategories: [...state.subcategories, newSubCategory]
-            }));
-            return newSubCategory;
-          }
-          return null;
-        } catch (error: any) {
-          toast.error('Failed to create subcategory: ' + error.message);
+          const newSubCategory = convertToSubCategory(data);
+          set((state) => ({
+            subcategories: [...state.subcategories, newSubCategory]
+          }));
+
+          return newSubCategory;
+        } catch (error: unknown) {
+          console.error('Error creating subcategory:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to create subcategory');
           return null;
         }
       },
@@ -487,42 +491,37 @@ export const useExpenseStore = create<Store>()(
 
       addExpense: async (expense) => {
         try {
-          const user = (await supabase.auth.getUser()).data.user;
+          const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error('You must be logged in to add expenses');
 
-          // Convert recurring data to JSON string if it exists
-          const recurringData = expense.recurring 
-            ? JSON.stringify(expense.recurring)
-            : null;
-
+          const validatedExpense = expenseSchema.parse(expense);
           const { data, error } = await supabase
             .from('expenses')
             .insert({
-              amount: expense.amount,
-              description: expense.description,
-              date: expense.date.toISOString(),
-              category_id: expense.categoryId,
-              subcategory_id: expense.subcategoryId,
-              recurring_data: recurringData,
+              amount: validatedExpense.amount,
+              description: validatedExpense.description,
+              date: validatedExpense.date.toISOString(),
+              category_id: validatedExpense.categoryId,
+              subcategory_id: validatedExpense.subcategoryId,
+              recurring_data: validatedExpense.recurring ? JSON.stringify(validatedExpense.recurring) : null,
               user_id: user.id
             })
             .select()
             .single();
 
           if (error) throw error;
+          if (!data) throw new Error('Failed to add expense');
 
-          if (data) {
-            const newExpense = convertToExpense(data);
-            set((state) => ({
-              expenses: [newExpense, ...state.expenses]
-            }));
-            return newExpense;
-          }
+          const newExpense = convertToExpense(data);
+          set((state) => ({
+            expenses: [...state.expenses, newExpense]
+          }));
+
+          return newExpense;
+        } catch (error: unknown) {
+          console.error('Error adding expense:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to add expense');
           return null;
-        } catch (error: any) {
-          console.error('Failed to add expense:', error);
-          toast.error('Failed to add expense: ' + error.message);
-          throw error;
         }
       },
       

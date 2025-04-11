@@ -2,11 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from "react";
 import { useExpenseStore } from "./lib/store";
-import { supabase } from "./integrations/supabase/client";
+import { setupAuthListener } from "./lib/session";
+import ErrorBoundary from "./components/ErrorBoundary";
 import AuthWrapper from "./components/AuthWrapper";
 import Index from "./pages/Index";
 import AddExpense from "./pages/AddExpense";
@@ -23,6 +24,8 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes
     },
   },
 });
@@ -39,28 +42,16 @@ const App = () => {
   }, [theme]);
   
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user && !initialized) {
-        initializeStore();
-      }
-    });
-    
-    // Check if already logged in and initialize if needed
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user && !initialized) {
+    // Set up auth state listener with our new session management
+    const unsubscribe = setupAuthListener(async (user) => {
+      if (user && !initialized) {
         await initializeStore();
       }
-      
       setIsLoading(false);
-    };
-    
-    checkAuth();
+    });
     
     return () => {
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, [initializeStore, initialized]);
   
@@ -73,29 +64,31 @@ const App = () => {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthWrapper>
-            <AnimatePresence mode="wait">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/add" element={<AddExpense />} />
-                <Route path="/statistics" element={<Statistics />} />
-                <Route path="/categories" element={<Categories />} />
-                <Route path="/budgets" element={<Budgets />} />
-                <Route path="/goals" element={<Goals />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/upload-receipt" element={<UploadReceipt />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AnimatePresence>
-          </AuthWrapper>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthWrapper>
+              <AnimatePresence mode="wait">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/add" element={<AddExpense />} />
+                  <Route path="/statistics" element={<Statistics />} />
+                  <Route path="/categories" element={<Categories />} />
+                  <Route path="/budgets" element={<Budgets />} />
+                  <Route path="/goals" element={<Goals />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/upload-receipt" element={<UploadReceipt />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </AnimatePresence>
+            </AuthWrapper>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

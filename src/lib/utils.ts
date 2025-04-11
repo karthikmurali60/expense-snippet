@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, subMonths, parseISO } from "date-fns";
@@ -347,4 +346,65 @@ export function getCategoryColor(type: string): string {
     case 'misc': return 'bg-expense-misc';
     default: return 'bg-gray-400';
   }
+}
+
+/**
+ * Debounce a function to limit how often it can be called
+ * @param func Function to debounce
+ * @param wait Time to wait in milliseconds
+ * @returns Debounced function
+ */
+export function debounce<T extends (...args: unknown[]) => unknown>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  
+  return function(...args: Parameters<T>): void {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+    
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    
+    timeout = setTimeout(later, wait);
+  };
+}
+
+/**
+ * Throttle a function to limit how often it can be called
+ * @param func Function to throttle
+ * @param limit Time limit in milliseconds
+ * @returns Throttled function
+ */
+export function throttle<T extends (...args: unknown[]) => unknown>(
+  func: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  let inThrottle = false;
+  let lastFunc: ReturnType<typeof setTimeout>;
+  let lastRan: number;
+  
+  return function(...args: Parameters<T>): void {
+    if (!inThrottle) {
+      func(...args);
+      lastRan = Date.now();
+      inThrottle = true;
+      
+      setTimeout(() => {
+        inThrottle = false;
+      }, limit);
+    } else {
+      clearTimeout(lastFunc);
+      lastFunc = setTimeout(() => {
+        if (Date.now() - lastRan >= limit) {
+          func(...args);
+          lastRan = Date.now();
+        }
+      }, limit - (Date.now() - lastRan));
+    }
+  };
 }

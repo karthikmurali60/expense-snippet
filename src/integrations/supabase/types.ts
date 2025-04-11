@@ -6,219 +6,153 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
-      budgets: {
-        Row: {
-          amount: number
-          category_id: string
-          created_at: string
-          id: string
-          month: string
-          user_id: string
-        }
-        Insert: {
-          amount: number
-          category_id: string
-          created_at?: string
-          id?: string
-          month: string
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          category_id?: string
-          created_at?: string
-          id?: string
-          month?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "budgets_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       categories: {
         Row: {
-          created_at: string
-          icon: string
           id: string
+          created_at: string
           name: string
           type: string
+          icon: string
           user_id: string
         }
         Insert: {
-          created_at?: string
-          icon: string
           id?: string
+          created_at?: string
           name: string
           type: string
+          icon: string
           user_id: string
         }
         Update: {
-          created_at?: string
-          icon?: string
           id?: string
+          created_at?: string
           name?: string
           type?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      expenses: {
-        Row: {
-          amount: number
-          category_id: string
-          created_at: string
-          date: string
-          description: string
-          id: string
-          recurring_data: Json | null
-          subcategory_id: string
-          user_id: string
-        }
-        Insert: {
-          amount: number
-          category_id: string
-          created_at?: string
-          date: string
-          description: string
-          id?: string
-          recurring_data?: Json | null
-          subcategory_id: string
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          category_id?: string
-          created_at?: string
-          date?: string
-          description?: string
-          id?: string
-          recurring_data?: Json | null
-          subcategory_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "expenses_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "expenses_subcategory_id_fkey"
-            columns: ["subcategory_id"]
-            isOneToOne: false
-            referencedRelation: "subcategories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      savings_goals: {
-        Row: {
-          color: string
-          created_at: string
-          current_amount: number
-          due_date: string | null
-          icon: string
-          id: string
-          name: string
-          target_amount: number
-          user_id: string
-        }
-        Insert: {
-          color: string
-          created_at?: string
-          current_amount?: number
-          due_date?: string | null
-          icon: string
-          id?: string
-          name: string
-          target_amount: number
-          user_id: string
-        }
-        Update: {
-          color?: string
-          created_at?: string
-          current_amount?: number
-          due_date?: string | null
           icon?: string
-          id?: string
-          name?: string
-          target_amount?: number
           user_id?: string
         }
-        Relationships: []
       }
       subcategories: {
         Row: {
-          category_id: string
-          created_at: string
           id: string
+          created_at: string
           name: string
+          category_id: string
           user_id: string
         }
         Insert: {
-          category_id: string
-          created_at?: string
           id?: string
+          created_at?: string
           name: string
+          category_id: string
           user_id: string
         }
         Update: {
-          category_id?: string
-          created_at?: string
           id?: string
+          created_at?: string
           name?: string
+          category_id?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "subcategories_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
       }
-      user_settings: {
+      expenses: {
         Row: {
-          created_at: string
           id: string
-          last_sync_time: string | null
-          splitwise_api_key: string | null
-          splitwise_user_id: string | null
-          updated_at: string
+          created_at: string
+          amount: number
+          description: string
+          date: string
+          category_id: string
+          subcategory_id: string
+          recurring_data: Json | null
           user_id: string
         }
         Insert: {
-          created_at?: string
           id?: string
-          last_sync_time?: string | null
-          splitwise_api_key?: string | null
-          splitwise_user_id?: string | null
-          updated_at?: string
+          created_at?: string
+          amount: number
+          description: string
+          date: string
+          category_id: string
+          subcategory_id: string
+          recurring_data?: Json | null
           user_id: string
         }
         Update: {
-          created_at?: string
           id?: string
-          last_sync_time?: string | null
-          splitwise_api_key?: string | null
-          splitwise_user_id?: string | null
-          updated_at?: string
+          created_at?: string
+          amount?: number
+          description?: string
+          date?: string
+          category_id?: string
+          subcategory_id?: string
+          recurring_data?: Json | null
           user_id?: string
         }
-        Relationships: []
+      }
+      budgets: {
+        Row: {
+          id: string
+          created_at: string
+          amount: number
+          month: string
+          category_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          amount: number
+          month: string
+          category_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          amount?: number
+          month?: string
+          category_id?: string
+          user_id?: string
+        }
+      }
+      savings_goals: {
+        Row: {
+          id: string
+          created_at: string
+          name: string
+          target_amount: number
+          current_amount: number
+          due_date: string | null
+          icon: string
+          color: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          name: string
+          target_amount: number
+          current_amount: number
+          due_date?: string | null
+          icon: string
+          color: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          name?: string
+          target_amount?: number
+          current_amount?: number
+          due_date?: string | null
+          icon?: string
+          color?: string
+          user_id?: string
+        }
       }
     }
     Views: {
