@@ -9,6 +9,7 @@ import { Loader2, User as UserIcon, Mail, Key, LogOut, Link as LinkIcon } from '
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
+import { getCurrentSplitwiseUserInfo } from '@/integrations/splitwise/client';
 
 const Profile = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -53,6 +54,32 @@ const Profile = () => {
     getUser();
   }, []);
 
+  // Function to fetch Splitwise user ID when API key changes
+  const fetchSplitwiseUserId = async (apiKey: string) => {
+    if (!apiKey) {
+      setSplitwiseUserId('');
+      return;
+    }
+
+    try {
+      const userInfo = await getCurrentSplitwiseUserInfo(apiKey);
+      setSplitwiseUserId(userInfo.id.toString());
+    } catch (error: unknown) {
+      console.error('Error fetching Splitwise user ID:', error);
+      toast.error('Failed to fetch Splitwise user ID. Please check your API key.');
+      setSplitwiseUserId('');
+    }
+  };
+
+  // Update Splitwise user ID when API key changes
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      fetchSplitwiseUserId(splitwiseApiKey);
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [splitwiseApiKey]);
+
   const handlePasswordUpdate = async () => {
     if (newPassword !== confirmPassword) {
       toast.error('Passwords do not match');
@@ -75,8 +102,9 @@ const Profile = () => {
       toast.success('Password updated successfully');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      console.error('Error updating password:', error);
+      toast.error('Failed to update password: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsUpdating(false);
     }
@@ -90,9 +118,6 @@ const Profile = () => {
     
     setIsSavingApiKey(true);
     try {
-      console.log('Saving API key for user:', user.id);
-      console.log('Splitwise API key:', splitwiseApiKey ? '✓ Provided' : '✗ Not provided');
-      console.log('Splitwise User ID:', splitwiseUserId ? '✓ Provided' : '✗ Not provided');
       
       // Check if a record already exists
       const { data: existingData, error: checkError } = await supabase
@@ -147,9 +172,9 @@ const Profile = () => {
       
       console.log('Settings saved successfully');
       toast.success('Splitwise settings saved successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save settings:', error);
-      toast.error('Failed to save settings: ' + error.message);
+      toast.error('Failed to save settings: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsSavingApiKey(false);
     }
@@ -162,8 +187,9 @@ const Profile = () => {
       if (error) throw error;
       toast.success('Signed out successfully');
       navigate('/');
-    } catch (error: any) {
-      toast.error('Error signing out: ' + error.message);
+    } catch (error: unknown) {
+      console.error('Error signing out:', error);
+      toast.error('Error signing out: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsUpdating(false);
     }
@@ -181,155 +207,131 @@ const Profile = () => {
 
   return (
     <Layout>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-        <p className="text-muted-foreground mt-1">Manage your account settings</p>
+      <div className="container max-w-2xl py-8">
+        <h1 className="text-2xl font-bold mb-8">Profile Settings</h1>
+        
+        <div className="space-y-8">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-16 w-16">
+              <AvatarFallback className="bg-primary/10 text-primary">
+                <UserIcon className="h-8 w-8" />
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h2 className="text-xl font-semibold">{user?.email}</h2>
+              {user?.created_at && (
+                <p className="text-sm text-muted-foreground">Account created {new Date(user.created_at).toLocaleDateString()}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium mb-4">Change Password</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="newPassword">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="pl-10"
+                      placeholder="Enter new password"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="confirmPassword">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="pl-10"
+                      placeholder="Confirm new password"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handlePasswordUpdate}
+                  disabled={isUpdating || !newPassword || !confirmPassword}
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Password'
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t">
+              <h3 className="text-lg font-medium mb-4">Splitwise Integration</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="splitwiseApiKey">
+                    Splitwise API Key
+                  </label>
+                  <p className="text-sm text-muted-foreground">
+                    Enter your Splitwise API key to enable expense synchronization
+                  </p>
+                  <div className="relative">
+                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="splitwiseApiKey"
+                      type="password"
+                      value={splitwiseApiKey}
+                      onChange={(e) => setSplitwiseApiKey(e.target.value)}
+                      className="pl-10"
+                      placeholder="Enter your Splitwise API key"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleSaveApiKey}
+                  disabled={isSavingApiKey || !splitwiseApiKey}
+                  className="w-full"
+                >
+                  {isSavingApiKey ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Splitwise Settings'
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t">
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={handleSignOut}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-xl p-6 space-y-6"
-      >
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarFallback className="bg-primary/10 text-primary">
-              <UserIcon className="h-8 w-8" />
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h2 className="text-xl font-semibold">{user?.email}</h2>
-            {user?.created_at && (
-              <p className="text-sm text-muted-foreground">Account created {new Date(user.created_at).toLocaleDateString()}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-lg font-medium mb-4">Change Password</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="newPassword">
-                  New Password
-                </label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="pl-10"
-                    placeholder="Enter new password"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="confirmPassword">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10"
-                    placeholder="Confirm new password"
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={handlePasswordUpdate}
-                disabled={isUpdating || !newPassword || !confirmPassword}
-              >
-                {isUpdating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  'Update Password'
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t">
-            <h3 className="text-lg font-medium mb-4">Splitwise Integration</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="splitwiseApiKey">
-                  Splitwise API Key
-                </label>
-                <p className="text-sm text-muted-foreground">
-                  Enter your Splitwise API key to enable expense synchronization
-                </p>
-                <div className="relative">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="splitwiseApiKey"
-                    type="password"
-                    value={splitwiseApiKey}
-                    onChange={(e) => setSplitwiseApiKey(e.target.value)}
-                    className="pl-10"
-                    placeholder="Enter your Splitwise API key"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="splitwiseUserId">
-                  Splitwise User ID
-                </label>
-                <p className="text-sm text-muted-foreground">
-                  Enter your Splitwise User ID to identify your account
-                </p>
-                <div className="relative">
-                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="splitwiseUserId"
-                    type="text"
-                    value={splitwiseUserId}
-                    onChange={(e) => setSplitwiseUserId(e.target.value)}
-                    className="pl-10"
-                    placeholder="Enter your Splitwise User ID"
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={handleSaveApiKey}
-                disabled={isSavingApiKey}
-              >
-                {isSavingApiKey ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save API Key'
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t">
-            <Button
-              variant="outline"
-              className="text-destructive hover:text-destructive"
-              onClick={handleSignOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </motion.div>
     </Layout>
   );
 };

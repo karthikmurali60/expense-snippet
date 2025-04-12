@@ -3,7 +3,7 @@ import { useExpenseStore } from '@/lib/store';
 
 // Splitwise API base URL
 const SPLITWISE_API_URL = 'https://secure.splitwise.com/api/v3.0';
-const SPLITWISE_WRAPPER_URL = 'https://splitwisewrapper-6tqo.onrender.com';
+const SPLITWISE_WRAPPER_URL = import.meta.env.VITE_SPLITWISE_WRAPPER_URL;
 
 // Interface for Splitwise group
 export interface SplitwiseGroup {
@@ -118,9 +118,10 @@ export const fetchSplitwiseGroups = async (): Promise<SplitwiseGroup[]> => {
     }
 
     console.log('Fetching Splitwise groups with API key');
-    const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_groups?api_key=${encodeURIComponent(apiKey)}`, {
+    const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_groups`, {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Splitwise-API-Key': apiKey
       }
     });
 
@@ -151,11 +152,12 @@ export const createSplitwiseExpense = async (expense: CreateSplitwiseExpense): P
     const { group_id, ...expenseData } = expense;
 
     const response = await fetch(
-      `${SPLITWISE_WRAPPER_URL}/create_expense?api_key=${encodeURIComponent(apiKey)}&group_id=${group_id}`, 
+      `${SPLITWISE_WRAPPER_URL}/create_expense?group_id=${group_id}`, 
       {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Splitwise-API-Key': apiKey
         },
         body: JSON.stringify(expenseData)
       }
@@ -205,10 +207,11 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
     const afterDate = lastSyncTime;
 
     const response = await fetch(
-      `${SPLITWISE_WRAPPER_URL}/get_expenses?api_key=${encodeURIComponent(apiKey)}&after_date=${encodeURIComponent(afterDate)}&user_id=${splitwiseUserId}`,
+      `${SPLITWISE_WRAPPER_URL}/get_expenses?after_date=${encodeURIComponent(afterDate)}&user_id=${splitwiseUserId}`,
       {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Splitwise-API-Key': apiKey
         }
       }
     );
@@ -274,6 +277,33 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
     await store.fetchExpenses();
   } catch (error) {
     console.error('Error syncing Splitwise expenses:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get the current user's information from Splitwise
+ */
+export const getCurrentSplitwiseUserInfo = async (apiKey: string): Promise<{ id: number; first_name: string; last_name: string; email: string; registration_status: string }> => {
+  try {
+    const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_current_user`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Splitwise-API-Key': apiKey
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Splitwise API error response:', errorText);
+      throw new Error(`Splitwise API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('Splitwise current user fetched successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching Splitwise current user:', error);
     throw error;
   }
 };
