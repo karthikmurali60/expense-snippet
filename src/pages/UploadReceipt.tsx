@@ -198,6 +198,12 @@ const UploadReceipt = () => {
                 <CardDescription>
                   Review and add items to your Splitwise group
                 </CardDescription>
+                <div className="mt-4 flex items-center justify-between border-t pt-4">
+                  <span className="text-lg font-semibold">Total Bill Amount</span>
+                  <span className="text-2lg font-bold text-primary">
+                    ${Object.values(editingPrices).reduce((sum, price) => sum + price, 0).toFixed(2)}
+                  </span>
+                </div>
               </CardHeader>
               <CardContent className="w-full">
                 <div className="space-y-4 w-full">
