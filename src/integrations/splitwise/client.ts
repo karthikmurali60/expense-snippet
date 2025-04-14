@@ -111,17 +111,17 @@ export const getSplitwiseApiKey = async (): Promise<{ apiKey: string | null; las
  */
 export const fetchSplitwiseGroups = async (): Promise<SplitwiseGroup[]> => {
   try {
-    const { apiKey } = await getSplitwiseApiKey();
-    if (!apiKey) {
-      console.error('Splitwise API key not found');
-      throw new Error('Splitwise API key not found. Please add your API key in the Profile settings.');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error('No active session found');
+      throw new Error('No active session found. Please log in again.');
     }
 
-    console.log('Fetching Splitwise groups with API key');
+    console.log('Fetching Splitwise groups with auth token');
     const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_groups`, {
       headers: {
         'Content-Type': 'application/json',
-        'X-Splitwise-API-Key': apiKey
+        'Authorization': `Bearer ${session.access_token}`
       }
     });
 
@@ -145,8 +145,10 @@ export const fetchSplitwiseGroups = async (): Promise<SplitwiseGroup[]> => {
  */
 export const createSplitwiseExpense = async (expense: CreateSplitwiseExpense): Promise<SplitwiseExpenseResponse> => {
   try {
-    const { apiKey } = await getSplitwiseApiKey();
-    if (!apiKey) throw new Error('Splitwise API key not found');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No active session found. Please log in again.');
+    }
 
     // Extract group_id from the expense object
     const { group_id, ...expenseData } = expense;
@@ -157,7 +159,7 @@ export const createSplitwiseExpense = async (expense: CreateSplitwiseExpense): P
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Splitwise-API-Key': apiKey
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify(expenseData)
       }
@@ -194,8 +196,12 @@ export async function getCurrentSplitwiseUser(): Promise<number | null> {
  */
 export const syncSplitwiseExpenses = async (): Promise<void> => {
   try {
-    const { apiKey, lastSyncTime, splitwiseUserId } = await getSplitwiseApiKey();
-    if (!apiKey) throw new Error('Splitwise API key not found');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No active session found. Please log in again.');
+    }
+
+    const { lastSyncTime, splitwiseUserId } = await getSplitwiseApiKey();
     if (!splitwiseUserId) throw new Error('Splitwise user ID not found');
 
     // If no last sync time exists, we can't sync
@@ -211,7 +217,7 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
       {
         headers: {
           'Content-Type': 'application/json',
-          'X-Splitwise-API-Key': apiKey
+          'Authorization': `Bearer ${session.access_token}`
         }
       }
     );
@@ -286,10 +292,15 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
  */
 export const getCurrentSplitwiseUserInfo = async (apiKey: string): Promise<{ id: number; first_name: string; last_name: string; email: string; registration_status: string }> => {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No active session found. Please log in again.');
+    }
+
     const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_current_user`, {
       headers: {
         'Content-Type': 'application/json',
-        'X-Splitwise-API-Key': apiKey
+        'Authorization': `Bearer ${session.access_token}`
       }
     });
 

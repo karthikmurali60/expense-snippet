@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -41,7 +40,7 @@ const SplitwiseIntegration: React.FC<SplitwiseIntegrationProps> = ({
           }
         } catch (error) {
           console.error('Error loading Splitwise groups:', error);
-          toast.error('Failed to load Splitwise groups. Please check your API key in settings.');
+          toast.error('Failed to load Splitwise groups. Please make sure you are logged in and have set up your Splitwise API key in settings.');
           setIsEnabled(false);
         } finally {
           setIsLoading(false);

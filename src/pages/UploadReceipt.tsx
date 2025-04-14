@@ -35,7 +35,7 @@ const UploadReceipt = () => {
         }
       } catch (error) {
         console.error('Error loading Splitwise groups:', error);
-        toast.error('Failed to load Splitwise groups. Please check your API key in settings.');
+        toast.error('Failed to load Splitwise groups. Please make sure you are logged in and have set up your Splitwise API key in settings.');
       }
     };
 
@@ -61,7 +61,7 @@ const UploadReceipt = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('https://splitwisewrapper-6tqo.onrender.com/get_items', {
+      const response = await fetch(`${import.meta.env.VITE_SPLITWISE_WRAPPER_URL}/get_items`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
