@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { useExpenseStore } from '@/lib/store';
@@ -7,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import ExpenseList from '@/components/ExpenseList';
 import MonthSummary from '@/components/MonthSummary';
 import FilterSection from '@/components/FilterSection';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Index = () => {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [isSubcategoriesOpen, setIsSubcategoriesOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const { 
     expenses, 
@@ -27,13 +29,24 @@ const Index = () => {
   const monthlyExpenses = getMonthlyExpenses(selectedMonth);
   const { totalAmount, categoryBreakdown } = getMonthlyStatistics(selectedMonth);
   
-  // Filter expenses based on selected category and subcategory
+  // Filter expenses based on selected category, subcategory, and search query
   const filteredExpenses = monthlyExpenses.filter(expense => {
     if (selectedCategory && expense.categoryId !== selectedCategory) {
       return false;
     }
     if (selectedSubcategory && expense.subcategoryId !== selectedSubcategory) {
       return false;
+    }
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      const category = categories.find(c => c.id === expense.categoryId);
+      const subcategory = subcategories.find(s => s.id === expense.subcategoryId);
+      
+      return (
+        expense.description?.toLowerCase().includes(searchLower) ||
+        expense.amount.toString().includes(searchLower) ||
+        subcategory?.name.toLowerCase().includes(searchLower)
+      );
     }
     return true;
   });
@@ -110,6 +123,17 @@ const Index = () => {
         selectedCategoryName={selectedCategoryName || undefined}
         selectedSubcategoryName={selectedSubcategoryName || undefined}
       />
+      
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Input
+          type="text"
+          placeholder="Search expenses..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
       
       <FilterSection 
         categories={categories}
