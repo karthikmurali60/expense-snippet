@@ -16,14 +16,32 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   const { initializeStore, initialized } = useExpenseStore();
 
   useEffect(() => {
+    // Set up auth state listener first to prevent missing events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log(`Auth state changed: ${event}`, newSession?.user?.email);
+      setSession(newSession);
+      
+      // Initialize store when user logs in or signs up
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && newSession?.user) {
+        try {
+          await initializeStore();
+        } catch (error) {
+          console.error("Error initializing store on auth change:", error);
+          toast.error("Failed to load your data");
+        }
+      }
+    });
+
     // Get initial session
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
+        console.log("Checking for existing session...");
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.log("Initial session check:", initialSession ? "User is logged in" : "No session found");
+        setSession(initialSession);
         
         // Initialize store if user is logged in or if no initialization has been done
-        if (session?.user || !initialized) {
+        if (initialSession?.user || !initialized) {
           try {
             await initializeStore();
           } catch (error) {
@@ -41,21 +59,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
     initializeAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      
-      // Initialize store when user logs in or signs up
-      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
-        try {
-          await initializeStore();
-        } catch (error) {
-          console.error("Error initializing store on auth change:", error);
-          toast.error("Failed to load your data");
-        }
-      }
-    });
-
+    // Clean up subscription when component unmounts
     return () => subscription.unsubscribe();
   }, [initializeStore, initialized]);
 

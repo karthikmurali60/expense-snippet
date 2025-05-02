@@ -36,10 +36,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      const authenticated = !!data.session;
-      setIsAuthenticated(authenticated);
-      setIsLoading(false);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const authenticated = !!data.session;
+        setIsAuthenticated(authenticated);
+      } catch (error) {
+        console.error("Auth check failed:", error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     checkAuth();
@@ -77,13 +83,17 @@ const App = () => {
     
     // Check if already logged in and initialize if needed
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user && !initialized) {
-        await initializeStore();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user && !initialized) {
+          await initializeStore();
+        }
+      } catch (error) {
+        console.error("Failed to check auth state:", error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
     checkAuth();
