@@ -34,6 +34,7 @@ export interface ExpenseActions {
 }
 
 export interface BudgetActions {
+  fetchBudgets: () => Promise<Budget[]>;
   addBudget: (budget: Omit<Budget, 'id'>) => Promise<Budget | null>;
   updateBudget: (id: string, updates: Partial<Budget>) => Promise<Budget | null>;
   deleteBudget: (id: string) => Promise<void>;
@@ -44,7 +45,6 @@ export interface BudgetActions {
     spentAmount: number;
     percentage: number;
   }[];
-  fetchBudgets: () => Promise<Budget[]>;
 }
 
 export interface SavingsGoalActions {

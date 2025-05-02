@@ -16,7 +16,7 @@ export const createInitializeAction = (set: any, get: () => Store) => ({
           get().fetchCategories(),
           get().fetchSubCategories(),
           get().fetchExpenses(),
-          get().fetchBudgets(), // Make sure this is defined in the BudgetActions interface
+          get().fetchBudgets(),
         ]);
         
         console.log("Store initialization complete");
