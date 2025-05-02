@@ -1,8 +1,9 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from "react";
 import { useExpenseStore } from "./lib/store";
@@ -26,6 +27,34 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Create a protected route component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      const authenticated = !!data.session;
+      setIsAuthenticated(authenticated);
+      setIsLoading(false);
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  return isAuthenticated ? children : <Navigate to="/" replace />;
+};
 
 const App = () => {
   const { initializeStore, initialized, theme } = useExpenseStore();
@@ -82,13 +111,41 @@ const App = () => {
             <AnimatePresence mode="wait">
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/add" element={<AddExpense />} />
-                <Route path="/statistics" element={<Statistics />} />
-                <Route path="/categories" element={<Categories />} />
-                <Route path="/budgets" element={<Budgets />} />
-                <Route path="/goals" element={<Goals />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/upload-receipt" element={<UploadReceipt />} />
+                <Route path="/add" element={
+                  <ProtectedRoute>
+                    <AddExpense />
+                  </ProtectedRoute>
+                } />
+                <Route path="/statistics" element={
+                  <ProtectedRoute>
+                    <Statistics />
+                  </ProtectedRoute>
+                } />
+                <Route path="/categories" element={
+                  <ProtectedRoute>
+                    <Categories />
+                  </ProtectedRoute>
+                } />
+                <Route path="/budgets" element={
+                  <ProtectedRoute>
+                    <Budgets />
+                  </ProtectedRoute>
+                } />
+                <Route path="/goals" element={
+                  <ProtectedRoute>
+                    <Goals />
+                  </ProtectedRoute>
+                } />
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/upload-receipt" element={
+                  <ProtectedRoute>
+                    <UploadReceipt />
+                  </ProtectedRoute>
+                } />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AnimatePresence>

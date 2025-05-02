@@ -9,13 +9,17 @@ export const createInitializeAction = (set: any, get: () => Store) => ({
     if (session.session) {
       // User is logged in, fetch data from Supabase
       try {
+        console.log("Initializing store and fetching data...");
+        
+        // Make sure to use Promise.all to fetch data in parallel
         await Promise.all([
           get().fetchCategories(),
           get().fetchSubCategories(),
           get().fetchExpenses(),
-          get().fetchBudgets(),
+          get().fetchBudgets(), // Make sure this is defined in the BudgetActions interface
         ]);
         
+        console.log("Store initialization complete");
         set({ initialized: true });
       } catch (error) {
         console.error("Failed to initialize store:", error);
@@ -24,6 +28,7 @@ export const createInitializeAction = (set: any, get: () => Store) => ({
       }
     } else {
       // User is not logged in yet, just mark as initialized
+      console.log("User not logged in, marking store as initialized");
       set({ initialized: true });
     }
   }
