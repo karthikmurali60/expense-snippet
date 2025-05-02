@@ -33,6 +33,7 @@ export interface Actions {
   getMonthlyExpenses: (month: string) => Expense[];
   getMonthlyStatistics: (month: string) => { totalAmount: number; categoryBreakdown: any[] };
   
+  fetchBudgets: () => Promise<Budget[]>;  // Added this line to fix the TypeScript error
   addBudget: (budget: Omit<Budget, 'id'>) => Promise<Budget | null>;
   updateBudget: (id: string, updates: Partial<Budget>) => Promise<Budget | null>;
   deleteBudget: (id: string) => Promise<void>;
