@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { useMobile } from '@/hooks/use-mobile';
 
 // Import refactored components
 import AmountInput from '@/components/expense/AmountInput';
@@ -24,6 +26,7 @@ const AddExpense = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const editingExpense = location.state?.expense as Expense | undefined;
+  const isMobile = useMobile();
   
   const { 
     categories, 
@@ -110,16 +113,26 @@ const AddExpense = () => {
     return true;
   };
   
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (isSubmitting) return;
+    if (isSubmitting) {
+      console.log("Submission already in progress, ignoring click");
+      return;
+    }
     
-    if (!validateForm()) return;
+    console.log("Form submit triggered, validating...");
     
+    if (!validateForm()) {
+      console.log("Form validation failed");
+      return;
+    }
+    
+    console.log("Setting isSubmitting to true");
     setIsSubmitting(true);
     
     try {
+      console.log("Creating expense data object");
       const expenseData = {
         amount,
         description,
@@ -138,10 +151,12 @@ const AddExpense = () => {
       let savedExpense;
       
       if (editingExpense) {
+        console.log("Updating existing expense");
         savedExpense = await updateExpense(editingExpense.id, expenseData);
         toast.success('Expense updated successfully');
       } else {
         if (isSplitwiseEnabled && selectedSplitwiseGroupId) {
+          console.log("Creating Splitwise expense");
           // Format date as YYYY-MM-DD
           const formattedDate = format(date, 'yyyy-MM-dd');
           
@@ -153,29 +168,33 @@ const AddExpense = () => {
             group_id: selectedSplitwiseGroupId,
           });
           
+          console.log("Syncing Splitwise expenses");
           // Sync Splitwise expenses to update the local state
           await syncSplitwiseExpenses();
           
           toast.success('Expense added to Splitwise');
-          navigate('/');
-          return;
         } else {
+          console.log("Adding expense to local store");
           if (isRecurring) {
+            console.log("Adding recurring expense");
             const expenses = await addRecurringExpense(expenseData);
             savedExpense = expenses[0];
             toast.success(`${expenses.length} recurring expenses added successfully`);
           } else {
+            console.log("Adding single expense");
             savedExpense = await addExpense(expenseData);
             toast.success('Expense added successfully');
           }
         }
       }
       
+      console.log("Expense saved successfully, navigating back");
       navigate('/');
     } catch (error) {
       console.error('Error submitting expense:', error);
       toast.error('Failed to submit expense');
     } finally {
+      console.log("Setting isSubmitting back to false");
       setIsSubmitting(false);
     }
   };
@@ -211,7 +230,7 @@ const AddExpense = () => {
         </h1>
       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleFormSubmit} className="space-y-6">
         <AmountInput amount={amount} setAmount={setAmount} />
         <DescriptionInput description={description} setDescription={setDescription} />
         <DateSelector 
