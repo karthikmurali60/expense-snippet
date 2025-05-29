@@ -33,6 +33,10 @@ export interface CreateSplitwiseExpense {
   description: string;
   date?: string; // Optional since the API will use current date if not provided
   group_id: number;
+  users__0__user_id: string;
+  users__0__paid_share: string;
+  users__0__owed_share: string;
+  [key: string]: string | number; // Allow dynamic user share properties
 }
 
 // Interface for Splitwise expense response

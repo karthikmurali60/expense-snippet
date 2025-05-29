@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -9,6 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
 
 // Import refactored components
 import AmountInput from '@/components/expense/AmountInput';
@@ -21,6 +21,7 @@ import SubmitButton from '@/components/expense/SubmitButton';
 import SplitwiseIntegration from '@/components/expense/SplitwiseIntegration';
 import { createSplitwiseExpense } from '@/integrations/splitwise/client';
 import { syncSplitwiseExpenses } from '@/integrations/splitwise/client';
+import { getSplitwiseApiKey } from '@/integrations/splitwise/client';
 
 const AddExpense = () => {
   const navigate = useNavigate();
@@ -54,6 +55,7 @@ const AddExpense = () => {
   // Splitwise integration state
   const [isSplitwiseEnabled, setIsSplitwiseEnabled] = useState(false);
   const [selectedSplitwiseGroupId, setSelectedSplitwiseGroupId] = useState<number | null>(null);
+  const [selectedSplitwiseMemberIds, setSelectedSplitwiseMemberIds] = useState<number[]>([]);
   
   // Update category selection once store is initialized and categories are loaded
   useEffect(() => {
@@ -105,9 +107,15 @@ const AddExpense = () => {
       }
     }
     
-    if (isSplitwiseEnabled && !selectedSplitwiseGroupId) {
-      toast.error('Please select a Splitwise group');
-      return false;
+    if (isSplitwiseEnabled) {
+      if (!selectedSplitwiseGroupId) {
+        toast.error('Please select a Splitwise group');
+        return false;
+      }
+      if (selectedSplitwiseMemberIds.length === 0) {
+        toast.error('Please select at least one member to split the expense with');
+        return false;
+      }
     }
     
     return true;
@@ -160,12 +168,50 @@ const AddExpense = () => {
           // Format date as YYYY-MM-DD
           const formattedDate = format(date, 'yyyy-MM-dd');
           
-          // Create Splitwise expense
+          // Calculate share per member
+          const sharePerMember = amount / selectedSplitwiseMemberIds.length;
+          
+          // Get all members from the selected group
+          const response = await fetch(
+            `${import.meta.env.VITE_SPLITWISE_WRAPPER_URL}/get_group_info?group_id=${selectedSplitwiseGroupId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+              }
+            }
+          );
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch group members');
+          }
+          
+          const { users: allGroupMembers } = await response.json();
+          
+          // Get current user's Splitwise ID
+          const { splitwiseUserId } = await getSplitwiseApiKey();
+          if (!splitwiseUserId) {
+            throw new Error('Splitwise user ID not found');
+          }
+          
+          // Reorder members to put current user first
+          const currentUserId = parseInt(splitwiseUserId);
+          const reorderedMembers = [
+            allGroupMembers.find(member => member.id === currentUserId),
+            ...allGroupMembers.filter(member => member.id !== currentUserId)
+          ].filter(Boolean); // Remove any undefined values
+          
+          // Create Splitwise expense with all members
           const splitwiseResponse = await createSplitwiseExpense({
             cost: amount.toString(),
             description: description,
             date: formattedDate,
             group_id: selectedSplitwiseGroupId,
+            ...reorderedMembers.reduce((acc, member, index) => ({
+              ...acc,
+              [`users__${index}__user_id`]: member.id,
+              [`users__${index}__paid_share`]: selectedSplitwiseMemberIds.includes(member.id) && index === 0 ? amount.toString() : "0",
+              [`users__${index}__owed_share`]: selectedSplitwiseMemberIds.includes(member.id) ? sharePerMember.toString() : "0",
+            }), {})
           });
           
           console.log("Syncing Splitwise expenses");
@@ -268,6 +314,8 @@ const AddExpense = () => {
             setIsEnabled={setIsSplitwiseEnabled}
             selectedGroupId={selectedSplitwiseGroupId}
             setSelectedGroupId={setSelectedSplitwiseGroupId}
+            selectedMemberIds={selectedSplitwiseMemberIds}
+            setSelectedMemberIds={setSelectedSplitwiseMemberIds}
             amount={amount}
           />
         )}
