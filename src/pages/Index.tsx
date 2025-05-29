@@ -8,6 +8,7 @@ import MonthSummary from '@/components/MonthSummary';
 import FilterSection from '@/components/FilterSection';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import { Expense } from '@/lib/types';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const Index = () => {
   const monthlyExpenses = getMonthlyExpenses(selectedMonth);
   const { totalAmount, categoryBreakdown } = getMonthlyStatistics(selectedMonth);
   
-  // Filter expenses based on selected category, subcategory, and search query
+  // Filter expenses
   const filteredExpenses = monthlyExpenses.filter(expense => {
     if (selectedCategory && expense.categoryId !== selectedCategory) {
       return false;
@@ -45,7 +46,9 @@ const Index = () => {
       return (
         expense.description?.toLowerCase().includes(searchLower) ||
         expense.amount.toString().includes(searchLower) ||
-        subcategory?.name.toLowerCase().includes(searchLower)
+        category?.name.toLowerCase().includes(searchLower) ||
+        subcategory?.name.toLowerCase().includes(searchLower) ||
+        formatCurrency(expense.amount).toLowerCase().includes(searchLower)
       );
     }
     return true;
@@ -96,13 +99,14 @@ const Index = () => {
     setSelectedCategory(null);
     setSelectedSubcategory(null);
     setIsSubcategoriesOpen(false);
+    setSearchQuery('');
   };
   
   const handleAddExpense = () => {
     navigate('/add');
   };
   
-  const handleEditExpense = (expense: any) => {
+  const handleEditExpense = (expense: Expense) => {
     // Navigate to edit form with expense data
     navigate('/add', { state: { expense } });
   };
@@ -124,15 +128,17 @@ const Index = () => {
         selectedSubcategoryName={selectedSubcategoryName || undefined}
       />
       
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input
-          type="text"
-          placeholder="Search expenses..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            type="text"
+            placeholder="Search expenses..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
       
       <FilterSection 
