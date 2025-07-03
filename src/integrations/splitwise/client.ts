@@ -1,3 +1,4 @@
+
 import { supabase } from '../supabase/client';
 import { useExpenseStore } from '@/lib/store';
 
@@ -84,7 +85,10 @@ interface SplitwiseUserShare {
 export const getSplitwiseApiKey = async (): Promise<{ apiKey: string | null; lastSyncTime: string | null; splitwiseUserId: string | null }> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { apiKey: null, lastSyncTime: null, splitwiseUserId: null };
+    if (!user) {
+      console.log('No authenticated user found');
+      return { apiKey: null, lastSyncTime: null, splitwiseUserId: null };
+    }
 
     console.log('Fetching Splitwise API key for user:', user.id);
     const { data, error } = await supabase
@@ -98,7 +102,12 @@ export const getSplitwiseApiKey = async (): Promise<{ apiKey: string | null; las
       throw error;
     }
     
-    console.log('User settings found:', data ? 'Yes' : 'No');
+    console.log('User settings retrieved:', { 
+      hasApiKey: !!data?.splitwise_api_key, 
+      hasUserId: !!data?.splitwise_user_id,
+      hasLastSyncTime: !!data?.last_sync_time
+    });
+    
     return { 
       apiKey: data?.splitwise_api_key || null,
       lastSyncTime: data?.last_sync_time || null,
@@ -115,6 +124,13 @@ export const getSplitwiseApiKey = async (): Promise<{ apiKey: string | null; las
  */
 export const fetchSplitwiseGroups = async (): Promise<SplitwiseGroup[]> => {
   try {
+    // First check if we have the API key
+    const { apiKey } = await getSplitwiseApiKey();
+    if (!apiKey) {
+      console.error('No Splitwise API key found');
+      throw new Error('No Splitwise API key found. Please set up your API key in the profile settings.');
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       console.error('No active session found');
@@ -301,6 +317,7 @@ export const getCurrentSplitwiseUserInfo = async (apiKey: string): Promise<{ id:
       throw new Error('No active session found. Please log in again.');
     }
 
+    console.log('Fetching current Splitwise user info');
     const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_current_user`, {
       headers: {
         'Content-Type': 'application/json',

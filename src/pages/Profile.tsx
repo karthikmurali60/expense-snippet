@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,16 +32,22 @@ const Profile = () => {
         
         // Fetch user settings including Splitwise API key and last sync time
         if (user) {
+          console.log('Fetching user settings for user:', user.id);
           const { data, error } = await supabase
             .from('user_settings')
             .select('splitwise_api_key, splitwise_user_id, last_sync_time')
             .eq('user_id', user.id)
             .maybeSingle();
             
-          if (data && !error) {
+          if (error) {
+            console.error('Error fetching user settings:', error);
+          } else if (data) {
+            console.log('User settings found:', { hasApiKey: !!data.splitwise_api_key, hasUserId: !!data.splitwise_user_id });
             setSplitwiseApiKey(data.splitwise_api_key || '');
             setSplitwiseUserId(data.splitwise_user_id || '');
             setLastSyncTime(data.last_sync_time || null);
+          } else {
+            console.log('No user settings found');
           }
         }
       } catch (error) {
@@ -62,7 +69,9 @@ const Profile = () => {
     }
 
     try {
+      console.log('Fetching Splitwise user ID with API key');
       const userInfo = await getCurrentSplitwiseUserInfo(apiKey);
+      console.log('Splitwise user info:', userInfo);
       setSplitwiseUserId(userInfo.id.toString());
     } catch (error: unknown) {
       console.error('Error fetching Splitwise user ID:', error);
@@ -73,6 +82,8 @@ const Profile = () => {
 
   // Update Splitwise user ID when API key changes
   useEffect(() => {
+    if (!splitwiseApiKey) return;
+    
     const debounceTimer = setTimeout(() => {
       fetchSplitwiseUserId(splitwiseApiKey);
     }, 500);
@@ -116,8 +127,14 @@ const Profile = () => {
       return;
     }
     
+    if (!splitwiseApiKey.trim()) {
+      toast.error('Please enter a valid API key');
+      return;
+    }
+    
     setIsSavingApiKey(true);
     try {
+      console.log('Saving Splitwise API key for user:', user.id);
       
       // Check if a record already exists
       const { data: existingData, error: checkError } = await supabase
@@ -142,8 +159,9 @@ const Profile = () => {
         result = await supabase
           .from('user_settings')
           .update({
-            splitwise_api_key: splitwiseApiKey,
+            splitwise_api_key: splitwiseApiKey.trim(),
             splitwise_user_id: splitwiseUserId,
+            last_sync_time: now, // Set initial sync time
             updated_at: now
           })
           .eq('user_id', user.id);
@@ -156,8 +174,9 @@ const Profile = () => {
           .from('user_settings')
           .insert({
             user_id: user.id,
-            splitwise_api_key: splitwiseApiKey,
+            splitwise_api_key: splitwiseApiKey.trim(),
             splitwise_user_id: splitwiseUserId,
+            last_sync_time: now, // Set initial sync time
             created_at: now,
             updated_at: now
           });
@@ -169,6 +188,9 @@ const Profile = () => {
         console.error('Error saving settings:', result.error);
         throw result.error;
       }
+      
+      // Update local state
+      setLastSyncTime(now);
       
       console.log('Settings saved successfully');
       toast.success('Splitwise settings saved successfully');
@@ -287,7 +309,15 @@ const Profile = () => {
                     Splitwise API Key
                   </label>
                   <p className="text-sm text-muted-foreground">
-                    Enter your Splitwise API key to enable expense synchronization
+                    Enter your Splitwise API key to enable expense synchronization.{' '}
+                    <a 
+                      href="https://secure.splitwise.com/apps" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      Get your API key here
+                    </a>
                   </p>
                   <div className="relative">
                     <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -300,11 +330,16 @@ const Profile = () => {
                       placeholder="Enter your Splitwise API key"
                     />
                   </div>
+                  {splitwiseUserId && (
+                    <p className="text-xs text-muted-foreground">
+                      Connected to Splitwise User ID: {splitwiseUserId}
+                    </p>
+                  )}
                 </div>
 
                 <Button
                   onClick={handleSaveApiKey}
-                  disabled={isSavingApiKey || !splitwiseApiKey}
+                  disabled={isSavingApiKey || !splitwiseApiKey.trim()}
                   className="w-full"
                 >
                   {isSavingApiKey ? (
