@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { toast } from 'sonner';
 import Layout from '@/components/Layout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { fetchSplitwiseGroups, createSplitwiseExpense, SplitwiseGroup } from '@/integrations/splitwise/client';
+import { fetchSplitwiseGroups, createSplitwiseExpense, SplitwiseGroup, getCurrentSplitwiseUser } from '@/integrations/splitwise/client';
 import { format } from 'date-fns';
 
 interface ReceiptItem {
@@ -22,24 +23,33 @@ const UploadReceipt = () => {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [editingPrices, setEditingPrices] = useState<Record<number, number>>({});
   const [isAddingToSplitwise, setIsAddingToSplitwise] = useState<Record<number, boolean>>({});
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   useEffect(() => {
-    const loadSplitwiseGroups = async () => {
+    const loadSplitwiseData = async () => {
       try {
-        const groups = await fetchSplitwiseGroups();
+        const [groups, userId] = await Promise.all([
+          fetchSplitwiseGroups(),
+          getCurrentSplitwiseUser()
+        ]);
+        
         setSplitwiseGroups(groups);
+        setCurrentUserId(userId);
+        
         console.log('Splitwise groups:', groups);
+        console.log('Current user ID:', userId);
+        
         if (groups.length > 0) {
           setSelectedGroupId(groups[0].id);
           console.log('Default group set:', groups[0].id);
         }
       } catch (error) {
-        console.error('Error loading Splitwise groups:', error);
-        toast.error('Failed to load Splitwise groups. Please make sure you are logged in and have set up your Splitwise API key in settings.');
+        console.error('Error loading Splitwise data:', error);
+        toast.error('Failed to load Splitwise data. Please make sure you are logged in and have set up your Splitwise API key in settings.');
       }
     };
 
-    loadSplitwiseGroups();
+    loadSplitwiseData();
   }, []);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,6 +120,11 @@ const UploadReceipt = () => {
       return;
     }
 
+    if (!currentUserId) {
+      toast.error('Unable to get current user ID. Please check your Splitwise settings.');
+      return;
+    }
+
     setIsAddingToSplitwise(prev => ({ ...prev, [index]: true }));
     
     try {
@@ -119,12 +134,15 @@ const UploadReceipt = () => {
       // Format current date as YYYY-MM-DD
       const formattedDate = format(new Date(), 'yyyy-MM-dd');
       
-      // Create Splitwise expense
+      // Create Splitwise expense with required user share properties
       await createSplitwiseExpense({
         cost: price.toString(),
         description: item.item_name,
         date: formattedDate,
         group_id: selectedGroupId,
+        users__0__user_id: currentUserId.toString(),
+        users__0__paid_share: price.toString(),
+        users__0__owed_share: price.toString()
       });
       
       toast.success(`Added "${item.item_name}" to Splitwise`);
@@ -263,4 +281,4 @@ const UploadReceipt = () => {
   );
 };
 
-export default UploadReceipt; 
+export default UploadReceipt;
