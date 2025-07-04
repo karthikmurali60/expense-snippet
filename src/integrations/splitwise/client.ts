@@ -259,7 +259,7 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
     if (!splitwiseUserId) throw new Error('Splitwise user ID not found');
 
     // If no last sync time exists, use a date far in the past
-    const afterDate = lastSyncTime || '2020-01-01T00:00:00.000Z';
+    const afterDate = lastSyncTime || '2020-01-01T00:00:00Z';
     console.log('Syncing expenses after:', afterDate);
 
     const response = await fetch(
@@ -272,6 +272,9 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
       }
     );
 
+    console.log('Sync response status:', response.status);
+    console.log('Sync response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Splitwise sync error:', errorText);
@@ -281,7 +284,8 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not found');
 
-    const { expenses } = await response.json();
+    const responseData = await response.json();
+    const { expenses } = responseData;
     console.log('Fetched expenses from Splitwise:', expenses?.length || 0);
     
     // Get the default category and subcategory for Splitwise expenses
@@ -400,6 +404,8 @@ export const getCurrentSplitwiseUserInfo = async (): Promise<SplitwiseCurrentUse
     }
 
     console.log('Fetching current Splitwise user info with API key');
+    console.log('Using wrapper URL:', SPLITWISE_WRAPPER_URL);
+    
     const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_current_user`, {
       headers: {
         'Content-Type': 'application/json',
@@ -407,9 +413,18 @@ export const getCurrentSplitwiseUserInfo = async (): Promise<SplitwiseCurrentUse
       }
     });
 
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Splitwise API error response:', response.status, errorText);
+      
+      // Check if we're getting an HTML response (error page)
+      if (errorText.includes('<!DOCTYPE') || errorText.includes('<html>')) {
+        console.error('Received HTML response instead of JSON - likely a server error or wrong endpoint');
+        throw new Error(`Splitwise API is not responding correctly. Please check if the wrapper service is running and the API key is valid.`);
+      }
       
       if (response.status === 401) {
         throw new Error('Invalid Splitwise API key. Please check your API key in profile settings.');
@@ -420,7 +435,16 @@ export const getCurrentSplitwiseUserInfo = async (): Promise<SplitwiseCurrentUse
       }
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse JSON response:', parseError);
+      throw new Error('Invalid response from Splitwise API. The service may be experiencing issues.');
+    }
+
     console.log('Splitwise current user fetched successfully:', data);
     
     if (!data || !data.user || !data.user.id) {
