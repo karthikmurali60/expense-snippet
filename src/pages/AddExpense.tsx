@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -19,9 +20,7 @@ import CategorySelector from '@/components/expense/CategorySelector';
 import SubcategorySelector from '@/components/expense/SubcategorySelector';
 import SubmitButton from '@/components/expense/SubmitButton';
 import SplitwiseIntegration from '@/components/expense/SplitwiseIntegration';
-import { createSplitwiseExpense } from '@/integrations/splitwise/client';
-import { syncSplitwiseExpenses } from '@/integrations/splitwise/client';
-import { getSplitwiseApiKey } from '@/integrations/splitwise/client';
+import { createSplitwiseExpense, getCurrentSplitwiseUser } from '@/integrations/splitwise/client';
 
 const AddExpense = () => {
   const navigate = useNavigate();
@@ -163,13 +162,19 @@ const AddExpense = () => {
         savedExpense = await updateExpense(editingExpense.id, expenseData);
         toast.success('Expense updated successfully');
       } else {
-        if (isSplitwiseEnabled && selectedSplitwiseGroupId) {
+        if (isSplitwiseEnabled && selectedSplitwiseGroupId && selectedSplitwiseMemberIds.length > 0) {
           console.log("Creating Splitwise expense");
           // Format date as YYYY-MM-DD
           const formattedDate = format(date, 'yyyy-MM-dd');
           
           // Calculate share per member
           const sharePerMember = amount / selectedSplitwiseMemberIds.length;
+          
+          // Get current user's Splitwise ID
+          const currentUserId = await getCurrentSplitwiseUser();
+          if (!currentUserId) {
+            throw new Error('Splitwise user ID not found');
+          }
           
           // Get all members from the selected group
           const response = await fetch(
@@ -187,14 +192,7 @@ const AddExpense = () => {
           
           const { users: allGroupMembers } = await response.json();
           
-          // Get current user's Splitwise ID
-          const { splitwiseUserId } = await getSplitwiseApiKey();
-          if (!splitwiseUserId) {
-            throw new Error('Splitwise user ID not found');
-          }
-          
           // Reorder members to put current user first
-          const currentUserId = parseInt(splitwiseUserId);
           const reorderedMembers = [
             allGroupMembers.find(member => member.id === currentUserId),
             ...allGroupMembers.filter(member => member.id !== currentUserId)
@@ -214,10 +212,7 @@ const AddExpense = () => {
             }), {})
           });
           
-          console.log("Syncing Splitwise expenses");
-          // Sync Splitwise expenses to update the local state
-          await syncSplitwiseExpenses();
-          
+          console.log("Splitwise expense created successfully:", splitwiseResponse);
           toast.success('Expense added to Splitwise');
         } else {
           console.log("Adding expense to local store");
@@ -238,7 +233,7 @@ const AddExpense = () => {
       navigate('/');
     } catch (error) {
       console.error('Error submitting expense:', error);
-      toast.error('Failed to submit expense');
+      toast.error('Failed to submit expense: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       console.log("Setting isSubmitting back to false");
       setIsSubmitting(false);

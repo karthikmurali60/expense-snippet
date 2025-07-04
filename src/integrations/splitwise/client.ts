@@ -58,17 +58,15 @@ export interface SplitwiseExpenseResponse {
 
 // Interface for Splitwise current user
 export interface SplitwiseCurrentUser {
-  user: {
-    id: number;
-    first_name: string;
-    last_name: string;
-    email: string;
-    registration_status: string;
-    picture: {
-      small: string;
-      medium: string;
-      large: string;
-    };
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  registration_status: string;
+  picture: {
+    small: string;
+    medium: string;
+    large: string;
   };
 }
 
@@ -173,6 +171,8 @@ export const createSplitwiseExpense = async (expense: CreateSplitwiseExpense): P
     // Extract group_id from the expense object
     const { group_id, ...expenseData } = expense;
 
+    console.log('Creating Splitwise expense:', expenseData, 'for group:', group_id);
+
     const response = await fetch(
       `${SPLITWISE_WRAPPER_URL}/create_expense?group_id=${group_id}`, 
       {
@@ -186,10 +186,14 @@ export const createSplitwiseExpense = async (expense: CreateSplitwiseExpense): P
     );
 
     if (!response.ok) {
-      throw new Error(`Splitwise API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Splitwise expense creation error:', errorText);
+      throw new Error(`Splitwise API error: ${response.status} - ${errorText}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log('Splitwise expense created successfully:', result);
+    return result;
   } catch (error) {
     console.error('Error creating Splitwise expense:', error);
     throw error;
@@ -202,9 +206,14 @@ export const createSplitwiseExpense = async (expense: CreateSplitwiseExpense): P
 export async function getCurrentSplitwiseUser(): Promise<number | null> {
   try {
     const { splitwiseUserId } = await getSplitwiseApiKey();
-    if (!splitwiseUserId) return null;
+    if (!splitwiseUserId) {
+      console.log('No Splitwise user ID found in settings');
+      return null;
+    }
     
-    return parseInt(splitwiseUserId);
+    const userId = parseInt(splitwiseUserId);
+    console.log('Current Splitwise user ID:', userId);
+    return userId;
   } catch (error) {
     console.error('Error getting current Splitwise user:', error);
     return null;
@@ -224,13 +233,9 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
     const { lastSyncTime, splitwiseUserId } = await getSplitwiseApiKey();
     if (!splitwiseUserId) throw new Error('Splitwise user ID not found');
 
-    // If no last sync time exists, we can't sync
-    if (!lastSyncTime) {
-      throw new Error('No previous sync time found. Please set up Splitwise integration first.');
-    }
-
-    // Use the last sync time directly in ISO format
-    const afterDate = lastSyncTime;
+    // If no last sync time exists, use a date far in the past
+    const afterDate = lastSyncTime || '2020-01-01T00:00:00.000Z';
+    console.log('Syncing expenses after:', afterDate);
 
     const response = await fetch(
       `${SPLITWISE_WRAPPER_URL}/get_expenses?after_date=${encodeURIComponent(afterDate)}&user_id=${splitwiseUserId}`,
@@ -243,53 +248,98 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
     );
 
     if (!response.ok) {
-      throw new Error(`Splitwise API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Splitwise sync error:', errorText);
+      throw new Error(`Splitwise API error: ${response.status} - ${errorText}`);
     }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not found');
 
     const { expenses } = await response.json();
+    console.log('Fetched expenses from Splitwise:', expenses?.length || 0);
     
     // Get the default category and subcategory for Splitwise expenses
     const { data: categories } = await supabase
       .from('categories')
       .select('id')
       .eq('type', 'misc')
+      .eq('user_id', user.id)
       .limit(1)
       .single();
     
-    if (!categories) throw new Error('No default category found for Splitwise expenses');
+    if (!categories) {
+      console.error('No misc category found, creating one...');
+      // Create a default misc category if none exists
+      const { data: newCategory } = await supabase
+        .from('categories')
+        .insert({
+          name: 'Miscellaneous',
+          type: 'misc',
+          icon: 'Package',
+          user_id: user.id
+        })
+        .select('id')
+        .single();
+      
+      if (!newCategory) throw new Error('Failed to create default category');
+      categories.id = newCategory.id;
+    }
     
     const { data: subcategories } = await supabase
       .from('subcategories')
       .select('id')
       .eq('category_id', categories.id)
+      .eq('user_id', user.id)
       .limit(1)
       .single();
     
-    if (!subcategories) throw new Error('No default subcategory found for Splitwise expenses');
+    if (!subcategories) {
+      console.error('No subcategory found, creating one...');
+      // Create a default subcategory if none exists
+      const { data: newSubcategory } = await supabase
+        .from('subcategories')
+        .insert({
+          name: 'Splitwise',
+          category_id: categories.id,
+          user_id: user.id
+        })
+        .select('id')
+        .single();
+        
+      if (!newSubcategory) throw new Error('Failed to create default subcategory');
+      subcategories.id = newSubcategory.id;
+    }
 
     // Add each expense to the database
-    for (const expense of expenses) {
-      // Skip payment transactions
-      if (expense.payment) continue;
+    let addedCount = 0;
+    if (expenses && expenses.length > 0) {
+      for (const expense of expenses) {
+        // Skip payment transactions
+        if (expense.payment) continue;
 
-      // Find user's share in the expense
-      const userShare = expense.users.find((u: SplitwiseUserShare) => u.user_id === parseInt(splitwiseUserId));
-      if (!userShare || parseFloat(userShare.owed_share) <= 0) continue;
+        // Find user's share in the expense
+        const userShare = expense.users.find((u: SplitwiseUserShare) => u.user_id === parseInt(splitwiseUserId));
+        if (!userShare || parseFloat(userShare.owed_share) <= 0) continue;
 
-      // Add expense to database
-      await supabase
-        .from('expenses')
-        .insert({
-          amount: parseFloat(userShare.owed_share),
-          description: expense.description,
-          date: expense.date,
-          category_id: categories.id,
-          subcategory_id: subcategories.id,
-          user_id: user.id
-        });
+        try {
+          // Add expense to database
+          await supabase
+            .from('expenses')
+            .insert({
+              amount: parseFloat(userShare.owed_share),
+              description: expense.description,
+              date: expense.date,
+              category_id: categories.id,
+              subcategory_id: subcategories.id,
+              user_id: user.id
+            });
+          addedCount++;
+        } catch (insertError) {
+          console.error('Error inserting expense:', insertError);
+          // Continue with other expenses even if one fails
+        }
+      }
     }
 
     // Update last sync time
@@ -297,6 +347,8 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
       .from('user_settings')
       .update({ last_sync_time: new Date().toISOString() })
       .eq('user_id', user.id);
+
+    console.log(`Sync completed: ${addedCount} expenses added`);
 
     // Refresh expenses in the store
     const store = useExpenseStore.getState();
@@ -310,7 +362,7 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
 /**
  * Get the current user's information from Splitwise
  */
-export const getCurrentSplitwiseUserInfo = async (apiKey: string): Promise<{ id: number; first_name: string; last_name: string; email: string; registration_status: string }> => {
+export const getCurrentSplitwiseUserInfo = async (): Promise<SplitwiseCurrentUser> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {

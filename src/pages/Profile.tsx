@@ -10,13 +10,14 @@ import { Loader2, User as UserIcon, Mail, Key, LogOut, Link as LinkIcon } from '
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentSplitwiseUserInfo } from '@/integrations/splitwise/client';
+import { getCurrentSplitwiseUserInfo, syncSplitwiseExpenses } from '@/integrations/splitwise/client';
 
 const Profile = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSavingApiKey, setIsSavingApiKey] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [splitwiseApiKey, setSplitwiseApiKey] = useState('');
@@ -63,14 +64,14 @@ const Profile = () => {
 
   // Function to fetch Splitwise user ID when API key changes
   const fetchSplitwiseUserId = async (apiKey: string) => {
-    if (!apiKey) {
+    if (!apiKey.trim()) {
       setSplitwiseUserId('');
       return;
     }
 
     try {
       console.log('Fetching Splitwise user ID with API key');
-      const userInfo = await getCurrentSplitwiseUserInfo(apiKey);
+      const userInfo = await getCurrentSplitwiseUserInfo();
       console.log('Splitwise user info:', userInfo);
       setSplitwiseUserId(userInfo.id.toString());
     } catch (error: unknown) {
@@ -82,7 +83,7 @@ const Profile = () => {
 
   // Update Splitwise user ID when API key changes
   useEffect(() => {
-    if (!splitwiseApiKey) return;
+    if (!splitwiseApiKey.trim()) return;
     
     const debounceTimer = setTimeout(() => {
       fetchSplitwiseUserId(splitwiseApiKey);
@@ -199,6 +200,37 @@ const Profile = () => {
       toast.error('Failed to save settings: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsSavingApiKey(false);
+    }
+  };
+
+  const handleSyncSplitwiseExpenses = async () => {
+    if (!splitwiseApiKey.trim() || !splitwiseUserId) {
+      toast.error('Please save your Splitwise API key first');
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      await syncSplitwiseExpenses();
+      toast.success('Splitwise expenses synced successfully');
+      
+      // Refresh the last sync time
+      if (user) {
+        const { data } = await supabase
+          .from('user_settings')
+          .select('last_sync_time')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (data) {
+          setLastSyncTime(data.last_sync_time);
+        }
+      }
+    } catch (error: unknown) {
+      console.error('Error syncing Splitwise expenses:', error);
+      toast.error('Failed to sync expenses: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -335,22 +367,45 @@ const Profile = () => {
                       Connected to Splitwise User ID: {splitwiseUserId}
                     </p>
                   )}
+                  {lastSyncTime && (
+                    <p className="text-xs text-muted-foreground">
+                      Last synced: {new Date(lastSyncTime).toLocaleString()}
+                    </p>
+                  )}
                 </div>
 
-                <Button
-                  onClick={handleSaveApiKey}
-                  disabled={isSavingApiKey || !splitwiseApiKey.trim()}
-                  className="w-full"
-                >
-                  {isSavingApiKey ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Splitwise Settings'
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSaveApiKey}
+                    disabled={isSavingApiKey || !splitwiseApiKey.trim()}
+                    className="flex-1"
+                  >
+                    {isSavingApiKey ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Settings'
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={handleSyncSplitwiseExpenses}
+                    disabled={isSyncing || !splitwiseApiKey.trim() || !splitwiseUserId}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      'Sync Expenses'
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
 
