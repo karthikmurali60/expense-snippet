@@ -1,10 +1,9 @@
-
 import { supabase } from '../supabase/client';
 import { useExpenseStore } from '@/lib/store';
 
 // Splitwise API base URL
 const SPLITWISE_API_URL = 'https://secure.splitwise.com/api/v3.0';
-const SPLITWISE_WRAPPER_URL = import.meta.env.VITE_SPLITWISE_WRAPPER_URL;
+const SPLITWISE_WRAPPER_URL = import.meta.env.VITE_SPLITWISE_WRAPPER_URL || 'https://splitwise-wrapper.onrender.com';
 
 // Interface for Splitwise group
 export interface SplitwiseGroup {
@@ -136,7 +135,7 @@ export const fetchSplitwiseGroups = async (): Promise<SplitwiseGroup[]> => {
       throw new Error('No active session found. Please log in again.');
     }
 
-    console.log('Fetching Splitwise groups with auth token');
+    console.log('Fetching Splitwise groups with auth token, wrapper URL:', SPLITWISE_WRAPPER_URL);
     const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_groups`, {
       headers: {
         'Content-Type': 'application/json',
@@ -172,7 +171,8 @@ export const createSplitwiseExpense = async (expense: CreateSplitwiseExpense): P
     // Extract group_id from the expense object
     const { group_id, ...expenseData } = expense;
 
-    console.log('Creating Splitwise expense:', expenseData, 'for group:', group_id);
+    console.log('Creating Splitwise expense with wrapper URL:', SPLITWISE_WRAPPER_URL);
+    console.log('Expense data:', expenseData, 'for group:', group_id);
 
     const response = await fetch(
       `${SPLITWISE_WRAPPER_URL}/create_expense?group_id=${group_id}`, 
@@ -261,6 +261,7 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
     // If no last sync time exists, use a date far in the past
     const afterDate = lastSyncTime || '2020-01-01T00:00:00Z';
     console.log('Syncing expenses after:', afterDate);
+    console.log('Using wrapper URL:', SPLITWISE_WRAPPER_URL);
 
     const response = await fetch(
       `${SPLITWISE_WRAPPER_URL}/get_expenses?after_date=${encodeURIComponent(afterDate)}&user_id=${splitwiseUserId}`,
@@ -406,6 +407,11 @@ export const getCurrentSplitwiseUserInfo = async (): Promise<SplitwiseCurrentUse
     console.log('Fetching current Splitwise user info with API key');
     console.log('Using wrapper URL:', SPLITWISE_WRAPPER_URL);
     
+    // Validate wrapper URL
+    if (!SPLITWISE_WRAPPER_URL || SPLITWISE_WRAPPER_URL === 'undefined') {
+      throw new Error('Splitwise wrapper service URL is not configured. Please check your environment variables.');
+    }
+    
     const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_current_user`, {
       headers: {
         'Content-Type': 'application/json',
@@ -423,7 +429,7 @@ export const getCurrentSplitwiseUserInfo = async (): Promise<SplitwiseCurrentUse
       // Check if we're getting an HTML response (error page)
       if (errorText.includes('<!DOCTYPE') || errorText.includes('<html>')) {
         console.error('Received HTML response instead of JSON - likely a server error or wrong endpoint');
-        throw new Error(`Splitwise API is not responding correctly. Please check if the wrapper service is running and the API key is valid.`);
+        throw new Error(`Splitwise wrapper service is not responding correctly. The service may be down or misconfigured.`);
       }
       
       if (response.status === 401) {
