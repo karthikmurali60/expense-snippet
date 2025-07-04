@@ -103,7 +103,8 @@ export const getSplitwiseApiKey = async (): Promise<{ apiKey: string | null; las
     console.log('User settings retrieved:', { 
       hasApiKey: !!data?.splitwise_api_key, 
       hasUserId: !!data?.splitwise_user_id,
-      hasLastSyncTime: !!data?.last_sync_time
+      hasLastSyncTime: !!data?.last_sync_time,
+      splitwiseUserId: data?.splitwise_user_id
     });
     
     return { 
@@ -205,18 +206,42 @@ export const createSplitwiseExpense = async (expense: CreateSplitwiseExpense): P
  */
 export async function getCurrentSplitwiseUser(): Promise<number | null> {
   try {
+    console.log('Getting current Splitwise user...');
     const { splitwiseUserId } = await getSplitwiseApiKey();
+    
     if (!splitwiseUserId) {
-      console.log('No Splitwise user ID found in settings');
+      console.log('No Splitwise user ID found in database, attempting to fetch from API...');
+      
+      // Try to fetch from Splitwise API and update the database
+      try {
+        const userInfo = await getCurrentSplitwiseUserInfo();
+        console.log('Fetched user info from Splitwise API:', userInfo);
+        
+        // Update the database with the fetched user ID
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && userInfo.id) {
+          await supabase
+            .from('user_settings')
+            .update({ splitwise_user_id: userInfo.id.toString() })
+            .eq('user_id', user.id);
+          
+          console.log('Updated database with Splitwise user ID:', userInfo.id);
+          return userInfo.id;
+        }
+      } catch (apiError) {
+        console.error('Failed to fetch user info from Splitwise API:', apiError);
+        throw new Error('Unable to fetch Splitwise user ID. Please check your API key.');
+      }
+      
       return null;
     }
     
     const userId = parseInt(splitwiseUserId);
-    console.log('Current Splitwise user ID:', userId);
+    console.log('Current Splitwise user ID from database:', userId);
     return userId;
   } catch (error) {
     console.error('Error getting current Splitwise user:', error);
-    return null;
+    throw error;
   }
 }
 
@@ -364,12 +389,17 @@ export const syncSplitwiseExpenses = async (): Promise<void> => {
  */
 export const getCurrentSplitwiseUserInfo = async (): Promise<SplitwiseCurrentUser> => {
   try {
+    const { apiKey } = await getSplitwiseApiKey();
+    if (!apiKey) {
+      throw new Error('No Splitwise API key found. Please set up your API key in the profile settings.');
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       throw new Error('No active session found. Please log in again.');
     }
 
-    console.log('Fetching current Splitwise user info');
+    console.log('Fetching current Splitwise user info with API key');
     const response = await fetch(`${SPLITWISE_WRAPPER_URL}/get_current_user`, {
       headers: {
         'Content-Type': 'application/json',
@@ -379,13 +409,25 @@ export const getCurrentSplitwiseUserInfo = async (): Promise<SplitwiseCurrentUse
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Splitwise API error response:', errorText);
-      throw new Error(`Splitwise API error: ${response.status} - ${errorText}`);
+      console.error('Splitwise API error response:', response.status, errorText);
+      
+      if (response.status === 401) {
+        throw new Error('Invalid Splitwise API key. Please check your API key in profile settings.');
+      } else if (response.status === 403) {
+        throw new Error('Splitwise API access forbidden. Please verify your API key permissions.');
+      } else {
+        throw new Error(`Splitwise API error: ${response.status} - ${errorText}`);
+      }
     }
 
     const data = await response.json();
     console.log('Splitwise current user fetched successfully:', data);
-    return data;
+    
+    if (!data || !data.user || !data.user.id) {
+      throw new Error('Invalid response from Splitwise API. User data not found.');
+    }
+    
+    return data.user;
   } catch (error) {
     console.error('Error fetching Splitwise current user:', error);
     throw error;

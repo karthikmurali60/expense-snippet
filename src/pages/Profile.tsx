@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +5,7 @@ import { User } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Loader2, User as UserIcon, Mail, Key, LogOut, Link as LinkIcon } from 'lucide-react';
+import { Loader2, User as UserIcon, Mail, Key, LogOut, Link as LinkIcon, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +17,7 @@ const Profile = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSavingApiKey, setIsSavingApiKey] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isFetchingUserId, setIsFetchingUserId] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [splitwiseApiKey, setSplitwiseApiKey] = useState('');
@@ -63,12 +63,17 @@ const Profile = () => {
   }, []);
 
   // Function to fetch Splitwise user ID when API key changes
-  const fetchSplitwiseUserId = async (apiKey: string) => {
-    if (!apiKey.trim()) {
+  const fetchSplitwiseUserId = async (apiKey: string, forceRefresh: boolean = false) => {
+    if (!apiKey.trim() && !forceRefresh) {
       setSplitwiseUserId('');
       return;
     }
 
+    if (!forceRefresh && splitwiseUserId) {
+      return; // Don't refetch if we already have a user ID
+    }
+
+    setIsFetchingUserId(true);
     try {
       console.log('Fetching Splitwise user ID with API key');
       const userInfo = await getCurrentSplitwiseUserInfo();
@@ -76,8 +81,13 @@ const Profile = () => {
       setSplitwiseUserId(userInfo.id.toString());
     } catch (error: unknown) {
       console.error('Error fetching Splitwise user ID:', error);
-      toast.error('Failed to fetch Splitwise user ID. Please check your API key.');
-      setSplitwiseUserId('');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to fetch Splitwise user ID: ${errorMessage}`);
+      if (!forceRefresh) {
+        setSplitwiseUserId('');
+      }
+    } finally {
+      setIsFetchingUserId(false);
     }
   };
 
@@ -87,7 +97,7 @@ const Profile = () => {
     
     const debounceTimer = setTimeout(() => {
       fetchSplitwiseUserId(splitwiseApiKey);
-    }, 500);
+    }, 1000); // Increased debounce time
 
     return () => clearTimeout(debounceTimer);
   }, [splitwiseApiKey]);
@@ -132,6 +142,11 @@ const Profile = () => {
       toast.error('Please enter a valid API key');
       return;
     }
+
+    if (!splitwiseUserId) {
+      toast.error('Unable to verify Splitwise user ID. Please check your API key.');
+      return;
+    }
     
     setIsSavingApiKey(true);
     try {
@@ -156,13 +171,12 @@ const Profile = () => {
       
       if (existingData) {
         console.log('Updating existing user settings record');
-        // Update existing record
         result = await supabase
           .from('user_settings')
           .update({
             splitwise_api_key: splitwiseApiKey.trim(),
             splitwise_user_id: splitwiseUserId,
-            last_sync_time: now, // Set initial sync time
+            last_sync_time: now,
             updated_at: now
           })
           .eq('user_id', user.id);
@@ -170,14 +184,13 @@ const Profile = () => {
         console.log('Update result:', result);
       } else {
         console.log('Creating new user settings record');
-        // Insert new record
         result = await supabase
           .from('user_settings')
           .insert({
             user_id: user.id,
             splitwise_api_key: splitwiseApiKey.trim(),
             splitwise_user_id: splitwiseUserId,
-            last_sync_time: now, // Set initial sync time
+            last_sync_time: now,
             created_at: now,
             updated_at: now
           });
@@ -190,9 +203,7 @@ const Profile = () => {
         throw result.error;
       }
       
-      // Update local state
       setLastSyncTime(now);
-      
       console.log('Settings saved successfully');
       toast.success('Splitwise settings saved successfully');
     } catch (error: unknown) {
@@ -201,6 +212,15 @@ const Profile = () => {
     } finally {
       setIsSavingApiKey(false);
     }
+  };
+
+  const handleRefreshUserId = async () => {
+    if (!splitwiseApiKey.trim()) {
+      toast.error('Please enter your Splitwise API key first');
+      return;
+    }
+    
+    await fetchSplitwiseUserId(splitwiseApiKey, true);
   };
 
   const handleSyncSplitwiseExpenses = async () => {
@@ -363,8 +383,27 @@ const Profile = () => {
                     />
                   </div>
                   {splitwiseUserId && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-green-600">
+                        ✓ Connected to Splitwise User ID: {splitwiseUserId}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleRefreshUserId}
+                        disabled={isFetchingUserId}
+                      >
+                        {isFetchingUserId ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                  {isFetchingUserId && (
                     <p className="text-xs text-muted-foreground">
-                      Connected to Splitwise User ID: {splitwiseUserId}
+                      Verifying Splitwise connection...
                     </p>
                   )}
                   {lastSyncTime && (
@@ -377,7 +416,7 @@ const Profile = () => {
                 <div className="flex gap-2">
                   <Button
                     onClick={handleSaveApiKey}
-                    disabled={isSavingApiKey || !splitwiseApiKey.trim()}
+                    disabled={isSavingApiKey || !splitwiseApiKey.trim() || !splitwiseUserId}
                     className="flex-1"
                   >
                     {isSavingApiKey ? (
