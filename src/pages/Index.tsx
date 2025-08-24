@@ -152,7 +152,7 @@ const Index = () => {
       <FilterSection 
         categories={categories}
         categoryBreakdown={categoryBreakdown}
-        selectedCategories={selectedCategories}cl
+        selectedCategories={selectedCategories}
         handleCategoryFilter={handleCategoryFilter}
         selectedSubcategory={selectedSubcategory}
         handleSubcategoryFilter={handleSubcategoryFilter}
