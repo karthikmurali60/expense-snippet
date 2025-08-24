@@ -13,7 +13,7 @@ import { Expense } from '@/lib/types';
 const Index = () => {
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [isSubcategoriesOpen, setIsSubcategoriesOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,7 +32,7 @@ const Index = () => {
   
   // Filter expenses
   const filteredExpenses = monthlyExpenses.filter(expense => {
-    if (selectedCategory && expense.categoryId !== selectedCategory) {
+    if (selectedCategories.length > 0 && !selectedCategories.includes(expense.categoryId)) {
       return false;
     }
     if (selectedSubcategory && expense.subcategoryId !== selectedSubcategory) {
@@ -60,22 +60,22 @@ const Index = () => {
     0
   );
 
-  // Get available subcategories for the selected category
-  const availableSubcategories = selectedCategory 
-    ? subcategories.filter(sub => sub.categoryId === selectedCategory)
+  // Get available subcategories for the selected categories
+  const availableSubcategories = selectedCategories.length > 0
+    ? subcategories.filter(sub => selectedCategories.includes(sub.categoryId))
     : [];
   
-  // Get names for selected category and subcategory
-  const selectedCategoryName = selectedCategory 
-    ? categories.find(c => c.id === selectedCategory)?.name 
-    : null;
+  // Get names for selected categories and subcategory
+  const selectedCategoryName = selectedCategories.length === 1
+    ? categories.find(c => c.id === selectedCategories[0])?.name
+    : selectedCategories.length > 1 ? `Multiple Categories (${selectedCategories.length})` : null;
   
   const selectedSubcategoryName = selectedSubcategory 
     ? subcategories.find(s => s.id === selectedSubcategory)?.name 
     : null;
   
   useEffect(() => {
-    // Reset selected subcategory when category changes
+    // Reset selected subcategory when categories change
     setSelectedSubcategory(null);
     
     // Simulate loading for smoother animations
@@ -84,11 +84,19 @@ const Index = () => {
     }, 300);
     
     return () => clearTimeout(timer);
-  }, [selectedCategory, selectedMonth]);
+  }, [selectedCategories, selectedMonth]);
   
   const handleCategoryFilter = (categoryId: string) => {
-    setSelectedCategory(prevId => prevId === categoryId ? null : categoryId);
-    setIsSubcategoriesOpen(selectedCategory !== categoryId);
+    setSelectedCategories(prevCategories => {
+      if (prevCategories.includes(categoryId)) {
+        // Remove the category if it's already selected
+        return prevCategories.filter(id => id !== categoryId);
+      } else {
+        // Add the category if it's not already selected
+        return [...prevCategories, categoryId];
+      }
+    });
+    setIsSubcategoriesOpen(true);
   };
 
   const handleSubcategoryFilter = (subcategoryId: string) => {
@@ -96,7 +104,7 @@ const Index = () => {
   };
   
   const clearFilters = () => {
-    setSelectedCategory(null);
+    setSelectedCategories([]);
     setSelectedSubcategory(null);
     setIsSubcategoriesOpen(false);
     setSearchQuery('');
@@ -123,7 +131,7 @@ const Index = () => {
         setSelectedMonth={setSelectedMonth}
         totalAmount={totalAmount}
         categoryBreakdown={categoryBreakdown}
-        selectedCategorySubcategoryTotal={selectedCategory ? selectedCategorySubcategoryTotal : undefined}
+        selectedCategorySubcategoryTotal={selectedCategories.length > 0 ? selectedCategorySubcategoryTotal : undefined}
         selectedCategoryName={selectedCategoryName || undefined}
         selectedSubcategoryName={selectedSubcategoryName || undefined}
       />
@@ -144,7 +152,7 @@ const Index = () => {
       <FilterSection 
         categories={categories}
         categoryBreakdown={categoryBreakdown}
-        selectedCategory={selectedCategory}
+        selectedCategories={selectedCategories}cl
         handleCategoryFilter={handleCategoryFilter}
         selectedSubcategory={selectedSubcategory}
         handleSubcategoryFilter={handleSubcategoryFilter}
@@ -159,7 +167,7 @@ const Index = () => {
         filteredExpenses={filteredExpenses}
         categories={categories}
         subcategories={subcategories}
-        selectedCategory={selectedCategory}
+        selectedCategories={selectedCategories}
         selectedSubcategory={selectedSubcategory}
         handleAddExpense={handleAddExpense}
         handleEditExpense={handleEditExpense}

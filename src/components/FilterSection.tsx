@@ -16,7 +16,7 @@ interface FilterSectionProps {
     total: number;
     color: string;
   }>;
-  selectedCategory: string | null;
+  selectedCategories: string[];
   handleCategoryFilter: (categoryId: string) => void;
   selectedSubcategory: string | null;
   handleSubcategoryFilter: (subcategoryId: string) => void;
@@ -29,7 +29,7 @@ interface FilterSectionProps {
 const FilterSection: React.FC<FilterSectionProps> = ({
   categories,
   categoryBreakdown,
-  selectedCategory,
+  selectedCategories,
   handleCategoryFilter,
   selectedSubcategory,
   handleSubcategoryFilter,
@@ -52,13 +52,13 @@ const FilterSection: React.FC<FilterSectionProps> = ({
               name={category.name}
               icon={category.icon}
               onClick={() => handleCategoryFilter(category.id)}
-              selected={selectedCategory === category.id}
+              selected={selectedCategories.includes(category.id)}
             />
           );
         })}
       </div>
       
-      {selectedCategory && availableSubcategories.length > 0 && (
+      {selectedCategories.length > 0 && availableSubcategories.length > 0 && (
         <Collapsible 
           open={isSubcategoriesOpen} 
           onOpenChange={setIsSubcategoriesOpen}
@@ -88,7 +88,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
         </Collapsible>
       )}
       
-      {(selectedCategory || selectedSubcategory) && (
+      {(selectedCategories.length > 0 || selectedSubcategory) && (
         <button 
           onClick={clearFilters}
           className="flex items-center mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"

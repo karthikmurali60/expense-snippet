@@ -10,7 +10,7 @@ interface ExpenseListProps {
   filteredExpenses: Expense[];
   categories: Category[];
   subcategories: Subcategory[];
-  selectedCategory: string | null;
+  selectedCategories: string[];
   selectedSubcategory: string | null;
   handleAddExpense: () => void;
   handleEditExpense: (expense: Expense) => void;
@@ -21,7 +21,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
   filteredExpenses,
   categories,
   subcategories,
-  selectedCategory,
+  selectedCategories,
   selectedSubcategory,
   handleAddExpense,
   handleEditExpense
@@ -31,7 +31,8 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">
           Recent Expenses
-          {selectedCategory && ` - ${categories.find(c => c.id === selectedCategory)?.name}`}
+          {selectedCategories.length === 1 && ` - ${categories.find(c => c.id === selectedCategories[0])?.name}`}
+          {selectedCategories.length > 1 && ` - Multiple Categories (${selectedCategories.length})`}
           {selectedSubcategory && ` - ${subcategories.find(s => s.id === selectedSubcategory)?.name}`}
         </h2>
         
