@@ -3,7 +3,7 @@ import React from 'react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Category, Subcategory, Expense } from '@/lib/types';
 import { motion } from 'framer-motion';
-import { MoreHorizontal, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Check } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,12 +12,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useExpenseStore } from '@/lib/store';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ExpenseCardProps {
   expense: Expense;
   category: Category;
   subcategory: Subcategory;
   onEdit: (expense: Expense) => void;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 const ExpenseCard: React.FC<ExpenseCardProps> = ({
@@ -25,6 +29,9 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
   category,
   subcategory,
   onEdit,
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelect,
 }) => {
   const { deleteExpense } = useExpenseStore();
 
@@ -45,21 +52,35 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.3 }}
-      className="glass rounded-xl p-4 mb-3 relative overflow-hidden"
+      className={cn(
+        "glass rounded-xl p-4 mb-3 relative overflow-hidden",
+        isSelectionMode && isSelected && "border border-primary"
+      )}
     >
       <div className="flex justify-between items-start">
-        <div>
-          <div className="text-sm text-muted-foreground">
-            {formatDate(expense.date)}
-          </div>
-          <div className="font-medium mt-1">{expense.description}</div>
-          <div className="flex gap-2 mt-2">
-            <span className={cn('px-2 py-0.5 text-xs rounded-md', `bg-expense-${category.type} text-white/90`)}>
-              {category.name}
-            </span>
-            <span className="px-2 py-0.5 text-xs rounded-md bg-secondary text-secondary-foreground">
-              {subcategory.name}
-            </span>
+        <div className="flex gap-3">
+          {isSelectionMode && (
+            <div className="flex items-center pt-1">
+              <Checkbox 
+                checked={isSelected}
+                onCheckedChange={onToggleSelect}
+                className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+              />
+            </div>
+          )}
+          <div>
+            <div className="text-sm text-muted-foreground">
+              {formatDate(expense.date)}
+            </div>
+            <div className="font-medium mt-1">{expense.description}</div>
+            <div className="flex gap-2 mt-2">
+              <span className={cn('px-2 py-0.5 text-xs rounded-md', `bg-expense-${category.type} text-white/90`)}>
+                {category.name}
+              </span>
+              <span className="px-2 py-0.5 text-xs rounded-md bg-secondary text-secondary-foreground">
+                {subcategory.name}
+              </span>
+            </div>
           </div>
         </div>
         

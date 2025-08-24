@@ -14,6 +14,9 @@ interface ExpenseListProps {
   selectedSubcategory: string | null;
   handleAddExpense: () => void;
   handleEditExpense: (expense: Expense) => void;
+  isSelectionMode?: boolean;
+  selectedExpenses?: string[];
+  toggleExpenseSelection?: (expenseId: string) => void;
 }
 
 const ExpenseList: React.FC<ExpenseListProps> = ({
@@ -24,7 +27,10 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
   selectedCategories,
   selectedSubcategory,
   handleAddExpense,
-  handleEditExpense
+  handleEditExpense,
+  isSelectionMode = false,
+  selectedExpenses = [],
+  toggleExpenseSelection
 }) => {
   return (
     <>
@@ -67,6 +73,9 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                   category={category}
                   subcategory={subcategory}
                   onEdit={handleEditExpense}
+                  isSelectionMode={isSelectionMode}
+                  isSelected={selectedExpenses.includes(expense.id)}
+                  onToggleSelect={toggleExpenseSelection ? () => toggleExpenseSelection(expense.id) : undefined}
                 />
               );
             })
