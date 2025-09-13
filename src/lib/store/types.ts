@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import type { CategoryType, Category, Subcategory, Expense, Budget, SavingsGoal } from '../types';
+import { DateRange } from 'react-day-picker';
 
 export interface State {
   categories: Category[];
@@ -31,6 +32,8 @@ export interface ExpenseActions {
   deleteExpense: (id: string) => Promise<void>;
   getMonthlyExpenses: (month: string) => Expense[];
   getMonthlyStatistics: (month: string) => { totalAmount: number; categoryBreakdown: any[] };
+  getExpensesByDateRange: (dateRange: DateRange | undefined) => Expense[];
+  getDateRangeStatistics: (dateRange: DateRange | undefined) => { totalAmount: number; categoryBreakdown: any[] };
 }
 
 export interface BudgetActions {

@@ -3,6 +3,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { formatCurrency, getMonthName } from '@/lib/utils';
 import MonthSelector from '@/components/MonthSelector';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
 
 interface MonthSummaryProps {
   selectedMonth: string;
@@ -16,6 +18,8 @@ interface MonthSummaryProps {
   selectedCategorySubcategoryTotal?: number;
   selectedCategoryName?: string;
   selectedSubcategoryName?: string;
+  dateRange?: DateRange;
+  isDateRangeActive?: boolean;
 }
 
 const MonthSummary: React.FC<MonthSummaryProps> = ({
@@ -25,13 +29,16 @@ const MonthSummary: React.FC<MonthSummaryProps> = ({
   categoryBreakdown,
   selectedCategorySubcategoryTotal,
   selectedCategoryName,
-  selectedSubcategoryName
+  selectedSubcategoryName,
+  dateRange,
+  isDateRangeActive
 }) => {
   return (
     <>
       <MonthSelector 
         selectedMonth={selectedMonth} 
-        onChange={setSelectedMonth} 
+        onChange={setSelectedMonth}
+        isDateRangeActive={isDateRangeActive}
       />
       
       <motion.div 
@@ -45,14 +52,29 @@ const MonthSummary: React.FC<MonthSummaryProps> = ({
             <p className="text-sm font-medium text-muted-foreground">
               {selectedCategoryName}
               {selectedSubcategoryName ? ` - ${selectedSubcategoryName}` : ''}
-              {' for '}
-              {getMonthName(selectedMonth)}
+              {isDateRangeActive && dateRange?.from ? (
+                <> for {dateRange.to ? 
+                  `${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}` : 
+                  format(dateRange.from, 'MMM d, yyyy')
+                }</>
+              ) : (
+                <> for {getMonthName(selectedMonth)}</>
+              )}
             </p>
             <h2 className="text-3xl font-bold mt-1">{formatCurrency(selectedCategorySubcategoryTotal)}</h2>
           </>
         ) : (
           <>
-            <p className="text-sm font-medium text-muted-foreground">Total for {getMonthName(selectedMonth)}</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              {isDateRangeActive && dateRange?.from ? (
+                <>Total for {dateRange.to ? 
+                  `${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}` : 
+                  format(dateRange.from, 'MMM d, yyyy')
+                }</>
+              ) : (
+                <>Total for {getMonthName(selectedMonth)}</>
+              )}
+            </p>
             <h2 className="text-3xl font-bold mt-1">{formatCurrency(totalAmount)}</h2>
           </>
         )}

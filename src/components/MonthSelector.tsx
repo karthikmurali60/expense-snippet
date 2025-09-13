@@ -7,9 +7,14 @@ import { motion } from 'framer-motion';
 interface MonthSelectorProps {
   selectedMonth: string; // Format: 'YYYY-MM'
   onChange: (month: string) => void;
+  isDateRangeActive?: boolean;
 }
 
-const MonthSelector: React.FC<MonthSelectorProps> = ({ selectedMonth, onChange }) => {
+const MonthSelector: React.FC<MonthSelectorProps> = ({ 
+  selectedMonth, 
+  onChange,
+  isDateRangeActive = false 
+}) => {
   const monthDate = parseISO(`${selectedMonth}-01`);
   
   const goToPreviousMonth = () => {
@@ -38,9 +43,14 @@ const MonthSelector: React.FC<MonthSelectorProps> = ({ selectedMonth, onChange }
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         transition={{ duration: 0.2 }}
-        className="text-xl font-medium text-center"
+        className="text-xl font-medium text-center flex flex-col"
       >
-        {format(monthDate, 'MMMM yyyy')}
+        <span>{format(monthDate, 'MMMM yyyy')}</span>
+        {isDateRangeActive && (
+          <span className="text-xs text-muted-foreground mt-1">
+            Month view (date range filter active)
+          </span>
+        )}
       </motion.div>
       
       <button 
