@@ -4,7 +4,7 @@ import { useExpenseStore } from '@/lib/store';
 import { formatCurrency, getCurrentMonth, getMonthName, exportToExcel, getPreviousMonth } from '@/lib/utils';
 import MonthSelector from '@/components/MonthSelector';
 import { motion } from 'framer-motion';
-import { DownloadIcon, PieChart, TrendingUp, TrendingDown, Minus, ChevronRight, ChevronDown } from 'lucide-react';
+import { DownloadIcon, PieChart, TrendingUp, TrendingDown, Minus, ChevronRight, ChevronDown, CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import {
@@ -12,7 +12,11 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { format, parseISO, subMonths } from 'date-fns';
+import { format, parseISO, subMonths, isWithinInterval } from 'date-fns';
+import { DateRange } from 'react-day-picker';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Define category colors for consistency
 const CATEGORY_COLORS = {
@@ -27,16 +31,98 @@ const Statistics = () => {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [compareMode, setCompareMode] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [filterMode, setFilterMode] = useState<'month' | 'date-range'>('month');
+  const [isLoading, setIsLoading] = useState(false);
   
   const { 
     getMonthlyExpenses, 
     getMonthlyStatistics,
     categories,
-    subcategories
+    subcategories,
+    expenses: allExpenses
   } = useExpenseStore();
   
-  const expenses = getMonthlyExpenses(selectedMonth);
-  const { totalAmount, categoryBreakdown } = getMonthlyStatistics(selectedMonth);
+  // Filter expenses by date range
+  const filterExpensesByDateRange = (dateRange: DateRange | undefined) => {
+    if (!dateRange || !dateRange.from) {
+      return [];
+    }
+    
+    return allExpenses.filter(expense => {
+      // Check if expense.date is a Date object
+      if (!(expense.date instanceof Date)) {
+        console.error("Invalid date object:", expense);
+        return false;
+      }
+      
+      try {
+        // If only from date is selected, check if expense date is on that day
+        if (!dateRange.to) {
+          return format(expense.date, "yyyy-MM-dd") === format(dateRange.from, "yyyy-MM-dd");
+        }
+        
+        // Check if expense date is within the date range
+        return isWithinInterval(expense.date, {
+          start: dateRange.from,
+          end: dateRange.to,
+        });
+      } catch (error) {
+        console.error("Error processing date:", error, expense);
+        return false;
+      }
+    });
+  };
+  
+  // Calculate statistics for date range
+  const calculateDateRangeStatistics = (dateRange: DateRange | undefined) => {
+    const rangeExpenses = filterExpensesByDateRange(dateRange);
+    
+    // Calculate total amount
+    const totalAmount = rangeExpenses.reduce(
+      (total, expense) => total + expense.amount,
+      0
+    );
+    
+    // Calculate breakdown by category
+    const categoryTotals = rangeExpenses.reduce((acc, expense) => {
+      const categoryId = expense.categoryId;
+      acc[categoryId] = (acc[categoryId] || 0) + expense.amount;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Create category breakdown with names and colors
+    const categoryBreakdown = Object.entries(categoryTotals)
+      .map(([id, total]) => {
+        const category = categories.find((c) => c.id === id) || {
+          name: "Unknown",
+          type: "misc",
+          icon: "Package",
+          id,
+        };
+        return {
+          id,
+          name: category.name,
+          total,
+          color: CATEGORY_COLORS[category.type] || '#8E9196'
+        };
+      })
+      .sort((a, b) => Number(b.total) - Number(a.total));
+    
+    return { totalAmount, categoryBreakdown };
+  };
+  
+  const isDateRangeActive = filterMode === 'date-range' && Boolean(dateRange?.from);
+  
+  // Get expenses based on filter mode
+  const expenses = isDateRangeActive 
+    ? filterExpensesByDateRange(dateRange)
+    : getMonthlyExpenses(selectedMonth);
+  
+  // Get statistics based on filter mode
+  const { totalAmount, categoryBreakdown } = isDateRangeActive
+    ? calculateDateRangeStatistics(dateRange)
+    : getMonthlyStatistics(selectedMonth);
   
   // Get previous month data for comparison
   const previousMonth = getPreviousMonth(selectedMonth);
@@ -124,8 +210,8 @@ const Statistics = () => {
         expenses, 
         categories, 
         subcategories, 
-        selectedMonth,
-        // Add previous month data for comparison
+        isDateRangeActive ? null : selectedMonth,
+        // Add comparison data and date range info
         {
           previousMonth,
           totalAmount,
@@ -133,7 +219,9 @@ const Statistics = () => {
           monthChange,
           categoryBreakdown,
           prevCategoryBreakdown,
-          getMonthlyExpenses
+          getMonthlyExpenses,
+          dateRange: isDateRangeActive ? dateRange : undefined,
+          isDateRangeActive
         }
       );
       toast.success('Exported successfully');
@@ -147,13 +235,35 @@ const Statistics = () => {
     <Layout>
       <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Statistics</h1>
-        <p className="text-muted-foreground mt-1">Analyze your monthly spending</p>
+        <p className="text-muted-foreground mt-1">Analyze your spending patterns</p>
       </div>
       
-      <MonthSelector 
-        selectedMonth={selectedMonth} 
-        onChange={setSelectedMonth} 
-      />
+      <Tabs 
+        defaultValue="month" 
+        value={filterMode}
+        onValueChange={(value) => setFilterMode(value as 'month' | 'date-range')}
+        className="mb-6"
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="month">Month View</TabsTrigger>
+          <TabsTrigger value="date-range">Custom Date Range</TabsTrigger>
+        </TabsList>
+        <TabsContent value="month" className="mt-4">
+          <MonthSelector 
+            selectedMonth={selectedMonth} 
+            onChange={setSelectedMonth}
+          />
+        </TabsContent>
+        <TabsContent value="date-range" className="mt-4">
+          <div className="glass rounded-xl p-5">
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              className="w-full"
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
       
       <motion.div 
         initial={{ opacity: 0 }} 
@@ -163,29 +273,42 @@ const Statistics = () => {
       >
         <div className="flex justify-between items-start mb-6">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Total for {getMonthName(selectedMonth)}</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              {isDateRangeActive && dateRange?.from ? (
+                <>
+                  Total for {dateRange.to ? 
+                    `${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}` : 
+                    format(dateRange.from, 'MMM d, yyyy')
+                  }
+                </>
+              ) : (
+                <>Total for {getMonthName(selectedMonth)}</>
+              )}
+            </p>
             <h2 className="text-3xl font-bold mt-1">{formatCurrency(totalAmount)}</h2>
             
-            {/* Add month-over-month comparison */}
-            <div className="flex items-center mt-2">
-              <div className={`flex items-center ${monthChange > 0 ? 'text-red-500' : monthChange < 0 ? 'text-green-500' : 'text-gray-500'}`}>
-                {monthChange > 0 ? (
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                ) : monthChange < 0 ? (
-                  <TrendingDown className="h-4 w-4 mr-1" />
-                ) : (
-                  <Minus className="h-4 w-4 mr-1" />
-                )}
-                <span className="text-sm font-medium">
-                  {monthChange !== 0 ? (
-                    `${monthChange > 0 ? '+' : ''}${formatCurrency(monthChange)} (${monthChangePercent}%)`
+            {/* Add month-over-month comparison - only show when in month view */}
+            {!isDateRangeActive && (
+              <div className="flex items-center mt-2">
+                <div className={`flex items-center ${monthChange > 0 ? 'text-red-500' : monthChange < 0 ? 'text-green-500' : 'text-gray-500'}`}>
+                  {monthChange > 0 ? (
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                  ) : monthChange < 0 ? (
+                    <TrendingDown className="h-4 w-4 mr-1" />
                   ) : (
-                    'No change'
+                    <Minus className="h-4 w-4 mr-1" />
                   )}
-                </span>
+                  <span className="text-sm font-medium">
+                    {monthChange !== 0 ? (
+                      `${monthChange > 0 ? '+' : ''}${formatCurrency(monthChange)} (${monthChangePercent}%)`
+                    ) : (
+                      'No change'
+                    )}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground ml-2">vs. {getMonthName(previousMonth)}</span>
               </div>
-              <span className="text-xs text-muted-foreground ml-2">vs. {getMonthName(previousMonth)}</span>
-            </div>
+            )}
           </div>
           
           <button

@@ -41,7 +41,7 @@ export async function exportToExcel(
   expenses: Expense[],
   categories: Category[],
   subcategories: Subcategory[],
-  month: string,
+  month: string | null,
   comparisonData?: {
     previousMonth: string;
     totalAmount: number;
@@ -50,6 +50,8 @@ export async function exportToExcel(
     categoryBreakdown: Array<{id: string; name: string; total: number}>;
     prevCategoryBreakdown: Array<{id: string; name: string; total: number}>;
     getMonthlyExpenses?: (month: string) => Expense[];
+    dateRange?: { from: Date; to?: Date };
+    isDateRangeActive?: boolean;
   }
 ) {
   // Map categories and subcategories for easier lookup
@@ -88,7 +90,18 @@ export async function exportToExcel(
   
   // Create workbook
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, `Expenses ${getMonthName(month)}`);
+  
+  // Set sheet name based on filter type
+  let sheetName = "Expenses";
+  if (month) {
+    sheetName += ` ${getMonthName(month)}`;
+  } else if (comparisonData?.dateRange?.from) {
+    const fromDate = format(comparisonData.dateRange.from, "MMM d, yyyy");
+    const toDate = comparisonData.dateRange.to ? format(comparisonData.dateRange.to, "MMM d, yyyy") : fromDate;
+    sheetName += ` ${fromDate} to ${toDate}`;
+  }
+  
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   
   // Create category summary worksheet
   if (comparisonData) {
@@ -229,15 +242,32 @@ export async function exportToExcel(
     }
     
     // Create insights worksheet
-    const insights = [
-      { "Insight": "Monthly Overview", "Details": `Your total spending for ${getMonthName(month)} was ${formatCurrency(comparisonData.totalAmount)}.` },
-      { "Insight": "Month-over-Month Change", "Details": comparisonData.monthChange > 0 
-        ? `Your spending increased by ${formatCurrency(comparisonData.monthChange)} (${((comparisonData.monthChange / comparisonData.prevTotalAmount) * 100).toFixed(1)}%) compared to last month.`
-        : comparisonData.monthChange < 0
-        ? `Your spending decreased by ${formatCurrency(Math.abs(comparisonData.monthChange))} (${Math.abs(((comparisonData.monthChange / comparisonData.prevTotalAmount) * 100)).toFixed(1)}%) compared to last month.`
-        : `Your spending remained the same as last month.`
-      }
-    ];
+    const insights = [];
+    
+    // Add overview based on filter type
+    if (comparisonData.isDateRangeActive && comparisonData.dateRange?.from) {
+      const fromDate = format(comparisonData.dateRange.from, "MMM d, yyyy");
+      const toDate = comparisonData.dateRange.to ? format(comparisonData.dateRange.to, "MMM d, yyyy") : fromDate;
+      insights.push({ 
+        "Insight": "Date Range Overview", 
+        "Details": `Your total spending from ${fromDate} to ${toDate} was ${formatCurrency(comparisonData.totalAmount)}.` 
+      });
+    } else if (month) {
+      insights.push({ 
+        "Insight": "Monthly Overview", 
+        "Details": `Your total spending for ${getMonthName(month)} was ${formatCurrency(comparisonData.totalAmount)}.` 
+      });
+      
+      // Add month-over-month comparison only for month view
+      insights.push({
+        "Insight": "Month-over-Month Change", 
+        "Details": comparisonData.monthChange > 0 
+          ? `Your spending increased by ${formatCurrency(comparisonData.monthChange)} (${((comparisonData.monthChange / comparisonData.prevTotalAmount) * 100).toFixed(1)}%) compared to last month.`
+          : comparisonData.monthChange < 0
+          ? `Your spending decreased by ${formatCurrency(Math.abs(comparisonData.monthChange))} (${Math.abs(((comparisonData.monthChange / comparisonData.prevTotalAmount) * 100)).toFixed(1)}%) compared to last month.`
+          : `Your spending remained the same as last month.`
+      });
+    }
     
     // Add top categories
     const topCategories = comparisonData.categoryBreakdown
@@ -335,7 +365,18 @@ export async function exportToExcel(
   }
   
   // Generate Excel file
-  XLSX.writeFile(workbook, `Expenses_${month}.xlsx`);
+  let fileName = "Expenses";
+  if (month) {
+    fileName += `_${month}`;
+  } else if (comparisonData?.dateRange?.from) {
+    const fromDate = format(comparisonData.dateRange.from, "yyyy-MM-dd");
+    const toDate = comparisonData.dateRange.to ? format(comparisonData.dateRange.to, "yyyy-MM-dd") : fromDate;
+    fileName += `_${fromDate}_to_${toDate}`;
+  } else {
+    fileName += `_${format(new Date(), "yyyy-MM-dd")}`;
+  }
+  
+  XLSX.writeFile(workbook, `${fileName}.xlsx`);
 }
 
 export function getCategoryColor(type: string): string {
