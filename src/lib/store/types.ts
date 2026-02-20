@@ -30,6 +30,9 @@ export interface ExpenseActions {
   addRecurringExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense[]>;
   updateExpense: (id: string, updates: Partial<Expense>) => Promise<Expense | null>;
   deleteExpense: (id: string) => Promise<void>;
+  bulkDeleteExpenses: (ids: string[]) => Promise<void>;
+  bulkUpdateCategory: (ids: string[], categoryId: string, subcategoryId: string) => Promise<void>;
+  autoGenerateRecurringExpenses: () => Promise<void>;
   getMonthlyExpenses: (month: string) => Expense[];
   getMonthlyStatistics: (month: string) => { totalAmount: number; categoryBreakdown: any[] };
   getExpensesByDateRange: (dateRange: DateRange | undefined) => Expense[];

@@ -16,8 +16,9 @@ export interface Subcategory {
 
 export interface RecurringExpenseDetails {
   isRecurring: boolean;
-  months: number;          // Number of months to repeat
+  months: number;          // Number of months to repeat; 0 = indefinite
   startMonth: string;      // Format: 'YYYY-MM'
+  groupId?: string;        // UUID shared by all instances of a recurring series
 }
 
 export interface Expense {

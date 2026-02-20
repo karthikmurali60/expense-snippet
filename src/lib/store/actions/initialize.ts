@@ -19,6 +19,8 @@ export const createInitializeAction = (set: any, get: () => Store) => ({
           get().fetchBudgets(),
         ]);
         
+        await get().autoGenerateRecurringExpenses();
+
         console.log("Store initialization complete");
         set({ initialized: true });
       } catch (error) {

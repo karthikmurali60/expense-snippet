@@ -8,7 +8,17 @@ import { useNavigate } from "react-router-dom";
 import ExpenseList from "@/components/ExpenseList";
 import MonthSummary from "@/components/MonthSummary";
 import FilterSection from "@/components/FilterSection";
+import CategorySelector from "@/components/expense/CategorySelector";
+import SubcategorySelector from "@/components/expense/SubcategorySelector";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Search } from "lucide-react";
 import { Expense } from "@/lib/types";
 import { DateRange } from "react-day-picker";
@@ -25,13 +35,38 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
+  // Re-categorize dialog state
+  const [recategorizeDialogOpen, setRecategorizeDialogOpen] = useState(false);
+  const [recategorizeIds, setRecategorizeIds] = useState<string[]>([]);
+  const [recategorizeCategoryId, setRecategorizeCategoryId] = useState("");
+  const [recategorizeSubcategoryId, setRecategorizeSubcategoryId] = useState("");
+
   const {
     expenses,
     categories,
     subcategories,
     getMonthlyExpenses,
     getMonthlyStatistics,
+    bulkDeleteExpenses,
+    bulkUpdateCategory,
   } = useExpenseStore();
+
+  // Seed re-categorize dialog category when it opens
+  useEffect(() => {
+    if (recategorizeDialogOpen && categories.length > 0 && !recategorizeCategoryId) {
+      setRecategorizeCategoryId(categories[0].id);
+    }
+  }, [recategorizeDialogOpen, categories, recategorizeCategoryId]);
+
+  // Auto-select first subcategory when category changes in dialog
+  useEffect(() => {
+    if (recategorizeCategoryId) {
+      const first = subcategories.find(
+        (s) => s.categoryId === recategorizeCategoryId
+      );
+      setRecategorizeSubcategoryId(first?.id || "");
+    }
+  }, [recategorizeCategoryId, subcategories]);
 
   // Create our own date range filtering function
   const filterExpensesByDateRange = (dateRange: DateRange | undefined) => {
@@ -40,24 +75,21 @@ const Index = () => {
     }
 
     return expenses.filter((expense) => {
-      // Check if expense.date is a Date object
       if (!(expense.date instanceof Date)) {
         console.error("Invalid date object:", expense);
         return false;
       }
 
       try {
-        // If only from date is selected, check if expense date is on that day
         if (!dateRange.to) {
           return (
             format(expense.date, "yyyy-MM-dd") ===
-            format(dateRange.from, "yyyy-MM-dd")
+            format(dateRange.from!, "yyyy-MM-dd")
           );
         }
 
-        // Check if expense date is within the date range
         return isWithinInterval(expense.date, {
-          start: dateRange.from,
+          start: dateRange.from!,
           end: dateRange.to,
         });
       } catch (error) {
@@ -71,20 +103,17 @@ const Index = () => {
   const calculateDateRangeStatistics = (dateRange: DateRange | undefined) => {
     const rangeExpenses = filterExpensesByDateRange(dateRange);
 
-    // Calculate total amount
     const totalAmount = rangeExpenses.reduce(
       (total, expense) => total + expense.amount,
       0
     );
 
-    // Calculate breakdown by category
     const categoryTotals = rangeExpenses.reduce((acc, expense) => {
       const categoryId = expense.categoryId;
       acc[categoryId] = (acc[categoryId] || 0) + expense.amount;
       return acc;
     }, {} as Record<string, number>);
 
-    // Create category breakdown with names and colors
     const categoryBreakdown = Object.entries(categoryTotals)
       .map(([id, total]) => {
         const category = categories.find((c) => c.id === id) || {
@@ -118,7 +147,6 @@ const Index = () => {
 
   const isDateRangeActive = Boolean(dateRange?.from);
 
-  // Get expenses based on both date range (if active) and selected month
   const monthlyExpenses = isDateRangeActive
     ? filterExpensesByDateRange(dateRange)
     : getMonthlyExpenses(selectedMonth);
@@ -127,7 +155,6 @@ const Index = () => {
     ? calculateDateRangeStatistics(dateRange)
     : getMonthlyStatistics(selectedMonth);
 
-  // Filter expenses
   const filteredExpenses = monthlyExpenses.filter((expense) => {
     if (
       selectedCategories.length > 0 &&
@@ -156,13 +183,11 @@ const Index = () => {
     return true;
   });
 
-  // Calculate selected category-subcategory total
   const selectedCategorySubcategoryTotal = filteredExpenses.reduce(
     (total, expense) => total + expense.amount,
     0
   );
 
-  // Get available subcategories for the selected categories
   const availableSubcategories =
     selectedCategories.length > 0
       ? subcategories.filter((sub) =>
@@ -170,7 +195,6 @@ const Index = () => {
         )
       : [];
 
-  // Get names for selected categories and subcategory
   const selectedCategoryName =
     selectedCategories.length === 1
       ? categories.find((c) => c.id === selectedCategories[0])?.name
@@ -182,31 +206,23 @@ const Index = () => {
     ? subcategories.find((s) => s.id === selectedSubcategory)?.name
     : null;
 
-  // Effect for category changes
   useEffect(() => {
-    // Reset selected subcategory when categories change
     setSelectedSubcategory(null);
   }, [selectedCategories]);
 
-  // Effect for loading animations on month or date range changes
   useEffect(() => {
     setIsLoading(true);
-
-    // Simulate loading for smoother animations
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 300);
-
     return () => clearTimeout(timer);
   }, [selectedMonth, dateRange?.from, dateRange?.to]);
 
   const handleCategoryFilter = (categoryId: string) => {
     setSelectedCategories((prevCategories) => {
       if (prevCategories.includes(categoryId)) {
-        // Remove the category if it's already selected
         return prevCategories.filter((id) => id !== categoryId);
       } else {
-        // Add the category if it's not already selected
         return [...prevCategories, categoryId];
       }
     });
@@ -232,8 +248,25 @@ const Index = () => {
   };
 
   const handleEditExpense = (expense: Expense) => {
-    // Navigate to edit form with expense data
     navigate("/add", { state: { expense } });
+  };
+
+  const handleBulkDelete = (ids: string[]) => {
+    bulkDeleteExpenses(ids);
+  };
+
+  const handleBulkRecategorize = (ids: string[]) => {
+    setRecategorizeIds(ids);
+    setRecategorizeCategoryId(categories[0]?.id || "");
+    setRecategorizeSubcategoryId("");
+    setRecategorizeDialogOpen(true);
+  };
+
+  const handleConfirmRecategorize = async () => {
+    if (!recategorizeCategoryId || !recategorizeSubcategoryId) return;
+    await bulkUpdateCategory(recategorizeIds, recategorizeCategoryId, recategorizeSubcategoryId);
+    setRecategorizeDialogOpen(false);
+    setRecategorizeIds([]);
   };
 
   return (
@@ -299,7 +332,47 @@ const Index = () => {
         selectedSubcategory={selectedSubcategory}
         handleAddExpense={handleAddExpense}
         handleEditExpense={handleEditExpense}
+        onBulkDelete={handleBulkDelete}
+        onBulkRecategorize={handleBulkRecategorize}
       />
+
+      {/* Re-categorize dialog */}
+      <Dialog open={recategorizeDialogOpen} onOpenChange={setRecategorizeDialogOpen}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Re-categorize {recategorizeIds.length} expense{recategorizeIds.length > 1 ? "s" : ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <CategorySelector
+              categories={categories}
+              categoryId={recategorizeCategoryId}
+              setCategoryId={setRecategorizeCategoryId}
+              setSubcategoryId={setRecategorizeSubcategoryId}
+            />
+            <SubcategorySelector
+              subcategories={subcategories}
+              subcategoryId={recategorizeSubcategoryId}
+              setSubcategoryId={setRecategorizeSubcategoryId}
+              categoryId={recategorizeCategoryId}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRecategorizeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmRecategorize}
+              disabled={!recategorizeCategoryId || !recategorizeSubcategoryId}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

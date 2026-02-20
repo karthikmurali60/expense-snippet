@@ -50,6 +50,7 @@ const AddExpense = () => {
   const [recurringMonthsInput, setRecurringMonthsInput] = useState(
     (editingExpense?.recurring?.months || 3).toString()
   );
+  const [isIndefinite, setIsIndefinite] = useState(false);
   
   // Splitwise integration state
   const [isSplitwiseEnabled, setIsSplitwiseEnabled] = useState(false);
@@ -72,10 +73,10 @@ const AddExpense = () => {
   // Update recurringMonths whenever the text input changes
   useEffect(() => {
     const parsedValue = parseInt(recurringMonthsInput);
-    if (!isNaN(parsedValue) && parsedValue > 0) {
+    if (!isNaN(parsedValue) && (parsedValue > 0 || isIndefinite)) {
       setRecurringMonths(parsedValue);
     }
-  }, [recurringMonthsInput]);
+  }, [recurringMonthsInput, isIndefinite]);
   
   const validateForm = () => {
     if (!initialized) {
@@ -98,7 +99,7 @@ const AddExpense = () => {
       return false;
     }
     
-    if (isRecurring) {
+    if (isRecurring && !isIndefinite) {
       const parsedMonths = parseInt(recurringMonthsInput);
       if (isNaN(parsedMonths) || parsedMonths <= 0 || parsedMonths > 60) {
         toast.error('Please enter a valid number of months (1-60)');
@@ -149,7 +150,7 @@ const AddExpense = () => {
         ...(isRecurring && {
           recurring: {
             isRecurring,
-            months: recurringMonths,
+            months: isIndefinite ? 0 : recurringMonths,
             startMonth: format(date, 'yyyy-MM')
           }
         })
@@ -220,7 +221,11 @@ const AddExpense = () => {
             console.log("Adding recurring expense");
             const expenses = await addRecurringExpense(expenseData);
             savedExpense = expenses[0];
-            toast.success(`${expenses.length} recurring expenses added successfully`);
+            if (isIndefinite) {
+              toast.success('Indefinite recurring expense added. Future months will be auto-generated.');
+            } else {
+              toast.success(`${expenses.length} recurring expenses added successfully`);
+            }
           } else {
             console.log("Adding single expense");
             savedExpense = await addExpense(expenseData);
@@ -281,12 +286,14 @@ const AddExpense = () => {
           setCalendarOpen={setCalendarOpen} 
         />
         
-        <RecurringExpenseOption 
-          isRecurring={isRecurring} 
+        <RecurringExpenseOption
+          isRecurring={isRecurring}
           setIsRecurring={setIsRecurring}
           recurringMonthsInput={recurringMonthsInput}
           setRecurringMonthsInput={setRecurringMonthsInput}
           isEditing={!!editingExpense}
+          isIndefinite={isIndefinite}
+          setIsIndefinite={setIsIndefinite}
         />
         
         <CategorySelector 
@@ -315,12 +322,13 @@ const AddExpense = () => {
           />
         )}
         
-        <SubmitButton 
+        <SubmitButton
           isSubmitting={isSubmitting}
           isEditing={!!editingExpense}
           isRecurring={isRecurring}
           recurringMonths={recurringMonths}
           initialized={initialized}
+          isIndefinite={isIndefinite}
         />
       </form>
     </Layout>
